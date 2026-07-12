@@ -1,0 +1,4 @@
+storePassword=您的仓库密码
+keyPassword=您的密钥密码
+keyAlias=upload
+storeFile=../upload-keystore.jks
