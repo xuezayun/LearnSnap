@@ -1,12 +1,18 @@
 import 'package:dio/dio.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/device_info_collector.dart';
 import '../models/home_snapshot.dart';
 import '../core/api_client.dart';
+import '../core/cos_uploader.dart';
+import '../core/local_cache.dart';
 import '../core/session_store.dart';
 import '../models/checkin_media.dart';
 import '../models/checkin_report.dart';
+import '../models/child_checkin_detail.dart';
 import '../models/bean_ledger.dart';
+import '../models/client_version.dart';
 
 String ensureVideoFilename(String name) {
   final ext = p.extension(name).toLowerCase();
@@ -26,14 +32,13 @@ class LearnSnapApi {
 
   Future<void> bindChild({
     required String bindCode,
-    required String deviceId,
+    required DeviceSnapshot device,
   }) async {
     final data = await _client.post(
       '/auth/child-bind',
       data: {
         'code': bindCode.trim().toUpperCase(),
-        'device_id': deviceId,
-        'device_name': 'Flutter Device',
+        ...device.toJson(),
       },
       options: Options(extra: {'skipAuth': true}),
     );
@@ -45,13 +50,34 @@ class LearnSnapApi {
     );
   }
 
+  Future<void> sendDeviceHeartbeat({DeviceSnapshot? device}) async {
+    final snapshot = device ?? await DeviceInfoCollector().collect();
+    await _client.post('/devices/heartbeat', data: snapshot.toJson());
+  }
+
+  Future<ClientVersionInfo> checkClientVersion({String? current}) async {
+    final version = current ?? (await PackageInfo.fromPlatform()).version;
+    final data = await _client.get(
+      '/client/version',
+      queryParameters: {
+        'channel': 'child_app',
+        'current': version,
+      },
+      options: Options(extra: {'skipAuth': true}),
+    );
+    return ClientVersionInfo.fromJson(data);
+  }
+
   Future<bool> hasSession() async {
     final token = await _sessionStore.accessToken;
     final childId = await _sessionStore.childId;
     return token != null && token.isNotEmpty && childId != null;
   }
 
-  Future<void> clearSession() => _sessionStore.clear();
+  Future<void> clearSession() async {
+    await _sessionStore.clear();
+    await clearLocalCache();
+  }
 
   Future<int?> getChildId() => _sessionStore.childId;
 
@@ -102,22 +128,72 @@ class LearnSnapApi {
     if (childId == null) {
       throw ApiException('未绑定孩子账号');
     }
-    final results = await Future.wait([
-      fetchTodayBox(childId),
-      fetchEntitlements(childId),
-    ]);
+    final entitlements = await fetchEntitlements(childId);
+    if (!entitlements.usable) {
+      throw ApiException(
+        '该档案已锁定，请家长开通会员或在小程序切换可用孩子',
+        code: 40207,
+      );
+    }
+    final todayBox = await fetchTodayBox(childId);
     return HomeSnapshot(
-      todayBox: results[0] as TodayBox,
-      entitlements: results[1] as FamilyEntitlements,
+      todayBox: todayBox,
+      entitlements: entitlements,
     );
   }
 
-    Future<CheckinSubmitResult> submitCheckin({
+  Future<ChildCheckinDetail> fetchCheckinDetail(int checkinId) async {
+    final data = await _client.get('/checkins/$checkinId/mine');
+    return ChildCheckinDetail.fromJson(data);
+  }
+
+  Future<List<CheckinMediaItem>> fetchCheckinMedia(int checkinId) async {
+    final detail = await fetchCheckinDetail(checkinId);
+    return detail.media;
+  }
+
+  Future<CheckinSubmitResult> submitCheckin({
     required int assignmentId,
     required List<CheckinMediaItem> media,
     String note = '',
     String? idempotencyKey,
   }) async {
+    final cosMedia = await buildCheckinMediaPayload(
+      client: _client,
+      dio: _client.dio,
+      media: media,
+    );
+    if (cosMedia != null) {
+      final data = await _client.post(
+        '/checkins/submit',
+        data: {
+          'assignment_id': assignmentId,
+          'note': note,
+          if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+            'idempotency_key': idempotencyKey,
+          'media': [
+            for (var i = 0; i < cosMedia.length; i++)
+              {
+                ...cosMedia[i].toJson(),
+                'sort_order': i,
+              },
+          ],
+        },
+        options: Options(
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+      return CheckinSubmitResult(
+        beans: _readInt(data['preheat_beans']),
+        revised: data['revised'] as bool? ?? false,
+      );
+    }
+
+    if (media.any((m) => m.isExistingRemote && !m.needsUpload)) {
+      throw ApiException('当前环境无法保留已提交媒体，请全部重新添加后提交');
+    }
+
     final formData = FormData.fromMap({
       'assignment_id': assignmentId.toString(),
       'note': note,

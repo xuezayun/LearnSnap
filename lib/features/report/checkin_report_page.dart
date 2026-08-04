@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/device_layout.dart';
 import '../../models/checkin_report.dart';
 import '../../services/learn_snap_api.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/app_scaffold_bg.dart';
+import '../../widgets/child_name_badge.dart';
+import '../beans/bean_ledger_page.dart';
+import '../home/widgets/meta_pill.dart';
 
 class CheckinReportPage extends StatefulWidget {
   const CheckinReportPage({super.key, this.api});
@@ -16,7 +22,8 @@ class CheckinReportPage extends StatefulWidget {
 class _CheckinReportPageState extends State<CheckinReportPage> {
   late final LearnSnapApi _api = widget.api ?? LearnSnapApi();
   CheckinReport? _report;
-  String _preset = '30d';
+  int? _childId;
+  String _preset = '7d';
   bool _loading = true;
   String? _error;
 
@@ -33,13 +40,14 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
     });
     try {
       final range = _rangeForPreset(_preset);
-      final report = await _api.fetchCheckinReport(
-        start: range.$1,
-        end: range.$2,
-      );
+      final results = await Future.wait([
+        _api.fetchCheckinReport(start: range.$1, end: range.$2),
+        _api.getChildId(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _report = report;
+        _report = results[0] as CheckinReport;
+        _childId = results[1] as int?;
         _loading = false;
       });
     } catch (e) {
@@ -77,6 +85,19 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
     _load();
   }
 
+  void _openBeanLedger() {
+    final report = _report;
+    if (report == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BeanLedgerPage(
+          api: _api,
+          initialBalance: report.energyBeans,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tablet = isTablet(context);
@@ -84,7 +105,8 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('打卡报告')),
-      body: RefreshIndicator(
+      body: AppScaffoldBackground(
+        child: RefreshIndicator(
         onRefresh: _load,
         child: _loading
             ? ListView(
@@ -114,17 +136,35 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(padding, padding, padding, 32),
                     children: [
-                      Text(
-                        '${_report!.nickname} 的学习记录',
-                        style: TextStyle(
-                          fontSize: tablet ? 24 : 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          ChildNameBadge(
+                            nickname: _report!.nickname,
+                            childId: _childId,
+                            size: tablet
+                                ? ChildNameBadgeSize.lg
+                                : ChildNameBadgeSize.md,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '的打卡记录',
+                              style: GoogleFonts.nunito(
+                                fontSize: tablet ? 24 : 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '${_report!.stats.periodStart} ~ ${_report!.stats.periodEnd}',
-                        style: const TextStyle(color: Colors.black54),
+                        style: GoogleFonts.nunito(
+                          color: AppColors.inkMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Wrap(
@@ -135,9 +175,11 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                             avatar: const Icon(Icons.local_fire_department, size: 18),
                             label: Text('连续 ${_report!.streak} 天'),
                           ),
-                          Chip(
-                            avatar: const Icon(Icons.bolt, size: 18),
-                            label: Text('${_report!.energyBeans} 乐豆'),
+                          MetaPill(
+                            icon: Icons.bolt_rounded,
+                            label: '${_report!.energyBeans} 乐豆',
+                            onTap: _openBeanLedger,
+                            emphasize: true,
                           ),
                         ],
                       ),
@@ -174,6 +216,7 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                       ),
                     ],
                   ),
+        ),
       ),
     );
   }
@@ -323,10 +366,11 @@ class _DailyBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCount = daily.fold<int>(0, (max, item) => item.count > max ? item.count : max);
+    final ordered = [...daily]..sort((a, b) => b.date.compareTo(a.date));
+    final maxCount = ordered.fold<int>(0, (max, item) => item.count > max ? item.count : max);
     final color = Theme.of(context).colorScheme.primary;
     return Column(
-      children: daily.map((item) {
+      children: ordered.map((item) {
         final ratio = maxCount == 0 ? 0.0 : item.count / maxCount;
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),

@@ -6,6 +6,7 @@ class BeanLedgerEntry {
     required this.amount,
     required this.balanceAfter,
     required this.note,
+    required this.taskTitle,
     required this.createdAt,
   });
 
@@ -15,6 +16,7 @@ class BeanLedgerEntry {
   final int amount;
   final int balanceAfter;
   final String note;
+  final String taskTitle;
   final String createdAt;
 
   bool get isIncome => amount > 0;
@@ -24,7 +26,8 @@ class BeanLedgerEntry {
     return '$amount';
   }
 
-  String get displayTitle => note.isNotEmpty ? note : entryLabel;
+  String get displayTitle =>
+      taskTitle.isNotEmpty ? taskTitle : (note.isNotEmpty ? note : entryLabel);
 
   factory BeanLedgerEntry.fromJson(Map<String, dynamic> json) {
     return BeanLedgerEntry(
@@ -34,6 +37,7 @@ class BeanLedgerEntry {
       amount: _readInt(json['amount']),
       balanceAfter: _readInt(json['balance_after']),
       note: json['note'] as String? ?? '',
+      taskTitle: json['task_title'] as String? ?? '',
       createdAt: json['created_at'] as String? ?? '',
     );
   }

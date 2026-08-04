@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/device_layout.dart';
 import '../../models/bean_ledger.dart';
 import '../../services/learn_snap_api.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/app_scaffold_bg.dart';
+import '../../widgets/child_name_badge.dart';
 
 class BeanLedgerPage extends StatefulWidget {
   const BeanLedgerPage({super.key, this.api, this.initialBalance});
@@ -19,6 +23,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
   final List<BeanLedgerEntry> _items = [];
   int _balance = 0;
   String _nickname = '同学';
+  int? _childId;
   int _page = 1;
   bool _hasMore = true;
   bool _loading = true;
@@ -49,12 +54,14 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
 
     try {
       final result = await _api.fetchBeanLedger(page: _page);
+      final childId = reset ? await _api.getChildId() : _childId;
       if (!mounted) return;
       setState(() {
         if (reset) {
           _items
             ..clear()
             ..addAll(result.items);
+          _childId = childId;
         } else {
           _items.addAll(result.items);
         }
@@ -87,7 +94,8 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('乐豆流水')),
-      body: RefreshIndicator(
+      body: AppScaffoldBackground(
+        child: RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: _loading
             ? ListView(
@@ -117,49 +125,69 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(padding, padding, padding, 32),
                     children: [
-                      Card(
-                        color: color.withValues(alpha: 0.08),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              Text(
-                                _nickname,
-                                style: const TextStyle(color: Colors.black54),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.82),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: AppColors.brand.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                              ChildNameBadge(
+                                nickname: _nickname,
+                                childId: _childId,
+                                size: ChildNameBadgeSize.md,
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 14),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.bolt, color: color, size: 32),
-                                  const SizedBox(width: 8),
+                                  Icon(Icons.bolt_rounded, color: color, size: 34),
+                                  const SizedBox(width: 6),
                                   Text(
                                     '$_balance',
-                                    style: TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w800,
                                       color: color,
+                                      height: 1,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  const Text('乐豆', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '乐豆',
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.inkMuted,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
                           ),
-                        ),
                       ),
                       const SizedBox(height: 16),
                       if (_items.isEmpty)
-                        const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
                               '还没有乐豆流水，完成打卡或获得家长奖励后会显示在这里',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.black54),
+                              style: GoogleFonts.nunito(
+                                color: AppColors.inkMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
                         )
                       else ...[
                         ..._items.map((entry) => _LedgerTile(
@@ -184,6 +212,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                       ],
                     ],
                   ),
+        ),
       ),
     );
   }

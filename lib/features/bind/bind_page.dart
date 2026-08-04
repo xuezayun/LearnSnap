@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
+import '../../core/app_config.dart';
+import '../../core/device_info_collector.dart';
 import '../../core/device_layout.dart';
 import '../../services/learn_snap_api.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/app_scaffold_bg.dart';
+
+const int _bindCodeLength = 8;
 
 class BindPage extends StatefulWidget {
   const BindPage({super.key, required this.onBound});
@@ -16,20 +23,66 @@ class BindPage extends StatefulWidget {
 
 class _BindPageState extends State<BindPage> {
   final _codeController = TextEditingController();
+  final _focusNode = FocusNode();
+  final _fieldKey = GlobalKey();
   final _api = LearnSnapApi();
   bool _loading = false;
   String? _error;
+  bool _showNoCodeHelp = false;
+
+  String get _code => _normalizeCode(_codeController.text);
+
+  bool get _canSubmit => _code.length == _bindCodeLength && !_loading;
+
+  @override
+  void initState() {
+    super.initState();
+    _codeController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _codeController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
+  static String _normalizeCode(String raw) {
+    return raw.toUpperCase().replaceAll(RegExp(r'[^0-9A-F]'), '');
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final pasted = _normalizeCode(data?.text ?? '');
+    if (pasted.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('剪贴板中没有可用的设备绑定码')),
+      );
+      return;
+    }
+    final clipped = pasted.length > _bindCodeLength
+        ? pasted.substring(0, _bindCodeLength)
+        : pasted;
+    _codeController.value = TextEditingValue(
+      text: clipped,
+      selection: TextSelection.collapsed(offset: clipped.length),
+    );
+    _focusNode.requestFocus();
+    if (clipped.length == _bindCodeLength) {
+      await _bind();
+    }
+  }
+
   Future<void> _bind() async {
-    final code = _codeController.text.trim();
-    if (code.isEmpty) {
-      setState(() => _error = '请输入绑定码');
+    final code = _code;
+    if (code.length != _bindCodeLength) {
+      setState(() => _error = '请输入完整的 $_bindCodeLength 位设备绑定码');
       return;
     }
     setState(() {
@@ -37,13 +90,18 @@ class _BindPageState extends State<BindPage> {
       _error = null;
     });
     try {
+      final device = await DeviceInfoCollector().collect();
       await _api.bindChild(
         bindCode: code,
-        deviceId: const Uuid().v4(),
+        device: device,
       );
       widget.onBound();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      final message = e.code == 40101
+          ? '设备绑定码无效或已使用，请让家长在微信小程序「${AppConfig.miniprogramName}」重新打开「设备绑定码」获取新码'
+          : e.message;
+      setState(() => _error = message);
+      _focusNode.requestFocus();
     } catch (_) {
       setState(() => _error = '绑定失败，请检查网络');
     } finally {
@@ -55,61 +113,355 @@ class _BindPageState extends State<BindPage> {
   Widget build(BuildContext context) {
     final buttonHeight = primaryButtonHeight(context);
     final tablet = isTablet(context);
+    final boxHeight = tablet ? 64.0 : 52.0;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: AdaptiveBody(
-            maxWidth: formMaxWidth(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '绑定设备',
-                  style: TextStyle(
-                    fontSize: tablet ? 28 : 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+      resizeToAvoidBottomInset: true,
+      body: AppScaffoldBackground(
+        child: SafeArea(
+          child: Center(
+            child: AdaptiveBody(
+              maxWidth: formMaxWidth(context),
+              child: SingleChildScrollView(
+                // Keep tree stable while IME opens — do not rebuild on viewInsets.
+                padding: EdgeInsets.only(
+                  bottom: 16 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
-                const SizedBox(height: 8),
-                const Text('请在家长小程序生成绑定码后输入', style: TextStyle(color: Colors.black54)),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _codeController,
-                  textCapitalization: TextCapitalization.characters,
-                  style: TextStyle(fontSize: tablet ? 18 : 16),
-                  decoration: InputDecoration(
-                    labelText: '设备绑定码',
-                    border: const OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: tablet ? 18 : 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+                    Text(
+                      AppConfig.appName,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                        fontSize: tablet ? 42 : 36,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.brandDeep,
+                        letterSpacing: -0.8,
+                        height: 1.05,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '孩子端 · 用设备绑定码登录，无需微信',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                        color: AppColors.inkMuted,
+                        fontSize: tablet ? 17 : 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+                    Container(
+                      padding: EdgeInsets.all(tablet ? 28 : 22),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: AppColors.brand.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            '输入家长提供的设备绑定码',
+                            style: GoogleFonts.nunito(
+                              fontSize: tablet ? 18 : 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '设备绑定码由家长在微信小程序「${AppConfig.miniprogramName}」生成。本 App 是孩子端，无需微信登录。',
+                            style: GoogleFonts.nunito(
+                              color: AppColors.inkMuted,
+                              fontSize: tablet ? 14 : 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.45,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          SizedBox(
+                            height: boxHeight,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                ListenableBuilder(
+                                  listenable: _focusNode,
+                                  builder: (context, _) {
+                                    return IgnorePointer(
+                                      child: _BindCodeBoxes(
+                                        code: _code,
+                                        focused: _focusNode.hasFocus,
+                                        length: _bindCodeLength,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Positioned.fill(
+                                  child: TextField(
+                                    key: _fieldKey,
+                                    controller: _codeController,
+                                    focusNode: _focusNode,
+                                    autofocus: true,
+                                    keyboardType: TextInputType.text,
+                                    textInputAction: TextInputAction.done,
+                                    textCapitalization:
+                                        TextCapitalization.characters,
+                                    enableSuggestions: false,
+                                    autocorrect: false,
+                                    showCursor: false,
+                                    enableInteractiveSelection: false,
+                                    style: const TextStyle(
+                                      color: Colors.transparent,
+                                      // Keep a real font size so the IME connection stays valid.
+                                      fontSize: 16,
+                                    ),
+                                    cursorColor: Colors.transparent,
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      isCollapsed: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      filled: false,
+                                    ),
+                                    inputFormatters: [
+                                      _BindCodeFormatter(
+                                        maxLength: _bindCodeLength,
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (_normalizeCode(value).length ==
+                                              _bindCodeLength &&
+                                          !_loading) {
+                                        Future<void>.delayed(
+                                          const Duration(milliseconds: 120),
+                                          () {
+                                            if (mounted && _canSubmit) {
+                                              _bind();
+                                            }
+                                          },
+                                        );
+                                      }
+                                    },
+                                    onSubmitted: (_) {
+                                      if (_canSubmit) _bind();
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed:
+                                  _loading ? null : _pasteFromClipboard,
+                              icon: const Icon(
+                                Icons.content_paste_rounded,
+                                size: 20,
+                              ),
+                              label: const Text('从剪贴板粘贴'),
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEBEE),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                _error!,
+                                style: GoogleFonts.nunito(
+                                  color: AppColors.danger,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(
+                                  () => _showNoCodeHelp = !_showNoCodeHelp,
+                                );
+                              },
+                              child: Text(
+                                _showNoCodeHelp ? '收起说明' : '没有设备绑定码？',
+                                style: GoogleFonts.nunito(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.brandDeep,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_showNoCodeHelp) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandSoft,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                '请让爸爸妈妈用微信搜索小程序「${AppConfig.miniprogramName}」→ 添加孩子 → 打开「设备绑定码」→ 复制给你。\n\n（设备绑定码不是会员邀请码。）',
+                                style: GoogleFonts.nunito(
+                                  color: AppColors.ink,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      '设备绑定码为 8 位字母或数字，不区分大小写',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                        color: AppColors.inkFaint,
+                        fontSize: tablet ? 14 : 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _canSubmit ? _bind : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: Size(double.infinity, buttonHeight),
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('绑定并开始'),
+                    ),
+                  ],
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-                ],
-                const Spacer(),
-                FilledButton(
-                  onPressed: _loading ? null : _bind,
-                  style: FilledButton.styleFrom(
-                    minimumSize: Size(double.infinity, buttonHeight),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('绑定并开始'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BindCodeFormatter extends TextInputFormatter {
+  _BindCodeFormatter({required this.maxLength});
+
+  final int maxLength;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final normalized = newValue.text
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^0-9A-F]'), '');
+    final clipped = normalized.length > maxLength
+        ? normalized.substring(0, maxLength)
+        : normalized;
+    return TextEditingValue(
+      text: clipped,
+      selection: TextSelection.collapsed(offset: clipped.length),
+    );
+  }
+}
+
+class _BindCodeBoxes extends StatelessWidget {
+  const _BindCodeBoxes({
+    required this.code,
+    required this.focused,
+    required this.length,
+  });
+
+  final String code;
+  final bool focused;
+  final int length;
+
+  @override
+  Widget build(BuildContext context) {
+    final tablet = isTablet(context);
+    final boxHeight = tablet ? 64.0 : 52.0;
+    final fontSize = tablet ? 28.0 : 24.0;
+
+    return Row(
+      children: [
+        for (var group = 0; group < 2; group++) ...[
+          if (group == 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                '—',
+                style: GoogleFonts.nunito(
+                  fontSize: tablet ? 22 : 18,
+                  color: AppColors.inkFaint,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          for (var j = 0; j < length ~/ 2; j++) ...[
+            if (j > 0) const SizedBox(width: 6),
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final i = group * (length ~/ 2) + j;
+                  final active = focused &&
+                      i == code.length.clamp(0, length - 1) &&
+                      code.length < length;
+                  final filled = i < code.length;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    height: boxHeight,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: filled
+                          ? AppColors.brandSoft
+                          : const Color(0xFFF4F7F8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: active
+                            ? AppColors.brand
+                            : (filled
+                                ? AppColors.brand.withValues(alpha: 0.35)
+                                : const Color(0xFFE0E6E8)),
+                        width: active ? 2.2 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      filled ? code[i] : '',
+                      style: GoogleFonts.nunito(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ],
     );
   }
 }

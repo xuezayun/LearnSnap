@@ -111,7 +111,7 @@ class CheckinReport {
   final String tier;
   final int? historyDays;
 
-  bool get isPlus => tier == 'plus';
+  bool get isPlus => tier == 'plus' || tier == 'pro';
 
   factory CheckinReport.fromJson(Map<String, dynamic> json) {
     final statsJson = json['stats'] as Map<String, dynamic>? ?? {};

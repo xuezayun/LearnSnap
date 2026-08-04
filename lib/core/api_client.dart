@@ -10,6 +10,20 @@ class ApiException implements Exception {
   final int code;
   final int? statusCode;
 
+  /// Token 对应用户已不存在、token 失效、设备未绑定等，应清会话并回到绑定页。
+  bool get isSessionInvalid {
+    if (statusCode == 401) return true;
+    if (code == 40402) return true; // 设备未绑定
+    final m = message;
+    return m.contains('未找到该用户') ||
+        m.contains('User not found') ||
+        m.contains('token not valid') ||
+        m.contains('Token is invalid') ||
+        m.contains('Token is expired') ||
+        m.contains('认证失败') ||
+        m.contains('身份认证信息未提供');
+  }
+
   @override
   String toString() => message;
 }
@@ -41,9 +55,24 @@ class ApiClient {
   final SessionStore _sessionStore;
   final Dio _dio;
 
-  Future<Map<String, dynamic>> get(String path) async {
-    final response = await _dio.get<dynamic>(path);
-    return _unwrap(response);
+  /// Exposed for absolute-URL uploads (e.g. COS pre-signed PUT).
+  Dio get dio => _dio;
+
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return _unwrap(response);
+    } on DioException catch (e) {
+      throw _fromDio(e);
+    }
   }
 
   Future<Map<String, dynamic>> post(
@@ -51,12 +80,16 @@ class ApiClient {
     Object? data,
     Options? options,
   }) async {
-    final response = await _dio.post<dynamic>(
-      path,
-      data: data,
-      options: options,
-    );
-    return _unwrap(response);
+    try {
+      final response = await _dio.post<dynamic>(
+        path,
+        data: data,
+        options: options,
+      );
+      return _unwrap(response);
+    } on DioException catch (e) {
+      throw _fromDio(e);
+    }
   }
 
   Future<Map<String, dynamic>> postMultipart(
@@ -65,20 +98,72 @@ class ApiClient {
     Duration? sendTimeout,
     Duration? receiveTimeout,
   }) async {
-    final response = await _dio.post<dynamic>(
-      path,
-      data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-        sendTimeout: sendTimeout,
-        receiveTimeout: receiveTimeout,
-      ),
-    );
-    return _unwrap(response);
+    try {
+      final response = await _dio.post<dynamic>(
+        path,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: sendTimeout,
+          receiveTimeout: receiveTimeout,
+        ),
+      );
+      return _unwrap(response);
+    } on DioException catch (e) {
+      throw _fromDio(e);
+    }
+  }
+
+  ApiException _fromDio(DioException e) {
+    final response = e.response;
+    if (response != null) {
+      try {
+        return _unwrap(response) as dynamic;
+      } on ApiException catch (err) {
+        return err;
+      } catch (_) {}
+      final raw = response.data;
+      if (raw is Map) {
+        final msg = raw['message'] ?? raw['detail'];
+        if (msg != null && '$msg'.trim().isNotEmpty) {
+          final c = raw['code'];
+          final code = c is int
+              ? c
+              : (c is num ? c.toInt() : int.tryParse('$c') ?? response.statusCode ?? -1);
+          return ApiException(msg.toString(), code: code, statusCode: response.statusCode);
+        }
+      }
+      return ApiException(
+        '请求失败(${response.statusCode})',
+        statusCode: response.statusCode,
+      );
+    }
+    return ApiException(e.message ?? '网络请求失败');
   }
 
   Map<String, dynamic> _unwrap(Response<dynamic> response) {
+    final status = response.statusCode ?? 0;
     final raw = response.data;
+    if (status >= 400) {
+      String message = '请求失败($status)';
+      int code = status;
+      if (raw is Map) {
+        final body = Map<String, dynamic>.from(raw);
+        final msg = body['message'] ?? body['detail'];
+        if (msg != null && '$msg'.trim().isNotEmpty) {
+          message = msg.toString();
+        }
+        final c = body['code'];
+        if (c is int) {
+          code = c;
+        } else if (c is num) {
+          code = c.toInt();
+        } else if (c is String) {
+          code = int.tryParse(c) ?? status;
+        }
+      }
+      throw ApiException(message, code: code, statusCode: status);
+    }
     if (raw == null) {
       throw ApiException('服务器无响应', statusCode: response.statusCode);
     }

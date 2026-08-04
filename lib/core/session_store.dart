@@ -27,5 +27,9 @@ class SessionStore {
     await _storage.write(key: _childIdKey, value: childId.toString());
   }
 
-  Future<void> clear() => _storage.deleteAll();
+  Future<void> clear() async {
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _childIdKey);
+  }
 }

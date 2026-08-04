@@ -4,15 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/device_layout.dart';
+import '../../core/media_url.dart';
 
 class VideoPreviewPage extends StatefulWidget {
   const VideoPreviewPage({
     super.key,
-    required this.filePath,
+    this.filePath,
+    this.networkUrl,
     this.previewOnly = false,
-  });
+  }) : assert(
+          (filePath != null && filePath.length > 0) ||
+              (networkUrl != null && networkUrl.length > 0),
+          'filePath or networkUrl required',
+        );
 
-  final String filePath;
+  final String? filePath;
+  final String? networkUrl;
   final bool previewOnly;
 
   @override
@@ -22,6 +29,7 @@ class VideoPreviewPage extends StatefulWidget {
 class _VideoPreviewPageState extends State<VideoPreviewPage> {
   VideoPlayerController? _controller;
   bool _ready = false;
+  String? _error;
 
   @override
   void initState() {
@@ -30,16 +38,27 @@ class _VideoPreviewPageState extends State<VideoPreviewPage> {
   }
 
   Future<void> _init() async {
-    final controller = VideoPlayerController.file(File(widget.filePath));
-    await controller.initialize();
-    if (!mounted) {
-      await controller.dispose();
-      return;
+    try {
+      final VideoPlayerController controller;
+      final net = widget.networkUrl?.trim();
+      if (net != null && net.isNotEmpty) {
+        controller = VideoPlayerController.networkUrl(parseMediaUri(net));
+      } else {
+        controller = VideoPlayerController.file(File(widget.filePath!));
+      }
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _controller = controller;
+        _ready = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '视频加载失败，请检查网络或重新提交该视频');
     }
-    setState(() {
-      _controller = controller;
-      _ready = true;
-    });
   }
 
   @override
@@ -58,15 +77,24 @@ class _VideoPreviewPageState extends State<VideoPreviewPage> {
         children: [
           Expanded(
             child: Center(
-              child: !_ready
-                  ? const CircularProgressIndicator()
-                  : ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: maxVideoWidth),
-                      child: AspectRatio(
-                        aspectRatio: _controller!.value.aspectRatio,
-                        child: VideoPlayer(_controller!),
+              child: _error != null
+                  ? Padding(
+                      padding: EdgeInsets.symmetric(horizontal: pagePadding(context)),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
-                    ),
+                    )
+                  : !_ready
+                      ? const CircularProgressIndicator()
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxVideoWidth),
+                          child: AspectRatio(
+                            aspectRatio: _controller!.value.aspectRatio,
+                            child: VideoPlayer(_controller!),
+                          ),
+                        ),
             ),
           ),
           if (_ready)
@@ -118,12 +146,9 @@ class _VideoPreviewPageState extends State<VideoPreviewPage> {
       floatingActionButton: _ready
           ? FloatingActionButton(
               onPressed: () {
+                final c = _controller!;
                 setState(() {
-                  if (_controller!.value.isPlaying) {
-                    _controller!.pause();
-                  } else {
-                    _controller!.play();
-                  }
+                  c.value.isPlaying ? c.pause() : c.play();
                 });
               },
               child: Icon(
