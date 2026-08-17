@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../models/honor_badge.dart';
 import '../../../theme/app_colors.dart';
+import '../../honor/honor_badge_strip.dart';
 
 String homeGreetingPrefix() {
   final hour = DateTime.now().hour;
@@ -15,14 +17,19 @@ class HomeGreeting extends StatelessWidget {
     super.key,
     required this.nickname,
     this.tablet = false,
+    this.honorBadge,
+    this.onHonorTap,
   });
 
   final String nickname;
   final bool tablet;
+  final HonorBadge? honorBadge;
+  final VoidCallback? onHonorTap;
 
   @override
   Widget build(BuildContext context) {
     final name = nickname.trim().isEmpty ? '同学' : nickname.trim();
+    final badge = honorBadge;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -35,6 +42,14 @@ class HomeGreeting extends StatelessWidget {
             height: 1.2,
           ),
         ),
+        if (badge != null) ...[
+          const SizedBox(height: 8),
+          HonorBadgeStrip(
+            badge: badge,
+            compact: true,
+            onTap: onHonorTap,
+          ),
+        ],
         const SizedBox(height: 6),
         Text(
           '好习惯，从每一次坚持开始',

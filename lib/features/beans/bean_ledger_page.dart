@@ -3,10 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/device_layout.dart';
 import '../../models/bean_ledger.dart';
+import '../../models/honor_badge.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import '../../widgets/child_name_badge.dart';
+import '../honor/honor_badge_page.dart';
+import '../honor/honor_badge_strip.dart';
 
 class BeanLedgerPage extends StatefulWidget {
   const BeanLedgerPage({super.key, this.api, this.initialBalance});
@@ -24,6 +27,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
   int _balance = 0;
   String _nickname = '同学';
   int? _childId;
+  HonorBadge _honorBadge = HonorBadge.empty();
   int _page = 1;
   bool _hasMore = true;
   bool _loading = true;
@@ -67,6 +71,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
         }
         _balance = result.balance;
         _nickname = result.nickname;
+        _honorBadge = result.honorBadge;
         _hasMore = result.hasMore;
         _page = result.page + 1;
         _loading = false;
@@ -170,6 +175,63 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                               ),
                             ],
                           ),
+                      ),
+                      const SizedBox(height: 12),
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => HonorBadgePage(
+                                  api: _api,
+                                  initial: _honorBadge,
+                                ),
+                              ),
+                            );
+                            if (mounted) _load(reset: true);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.accentSun.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      '荣誉徽章',
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.ink,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '去兑换 ›',
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.brandDeep,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                HonorBadgeStrip(badge: _honorBadge, compact: true),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       if (_items.isEmpty)

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -127,15 +126,6 @@ class _VideoRecordPageState extends State<VideoRecordPage> {
     setState(() => _recording = false);
     try {
       final file = await controller.stopVideoRecording();
-      final bytes = await File(file.path).length();
-      if (bytes > checkinMaxVideoBytes) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('视频超过 50MB，请缩短录制时长')),
-          );
-        }
-        return;
-      }
       if (!mounted) return;
       Navigator.pop(
         context,

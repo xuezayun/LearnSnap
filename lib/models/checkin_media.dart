@@ -96,7 +96,7 @@ class CheckinMediaItem {
   }
 }
 
-const checkinMaxVideoDuration = Duration(seconds: 60); //修改为时长为60秒
+const checkinMaxVideoDuration = Duration(minutes: 2);
 const checkinMaxVideoBytes = 50 * 1024 * 1024;
 const checkinMaxImages = 3;
 const checkinMaxVideos = 1;

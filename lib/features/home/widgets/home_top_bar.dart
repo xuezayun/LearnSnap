@@ -11,11 +11,15 @@ class HomeTopBar extends StatelessWidget {
     required this.onLogout,
     this.updateInfo,
     this.onUpdateTap,
+    this.showReviewTools = false,
+    this.onReviewToolsTap,
   });
 
   final VoidCallback onLogout;
   final ClientVersionInfo? updateInfo;
   final VoidCallback? onUpdateTap;
+  final bool showReviewTools;
+  final VoidCallback? onReviewToolsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +51,29 @@ class HomeTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        if (showReviewTools) ...[
+          Tooltip(
+            message: '审核助手',
+            child: Material(
+              color: AppColors.brandSoft,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onReviewToolsTap,
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(
+                    Icons.fact_check_rounded,
+                    color: AppColors.brandDeep,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         if (showUpdate) ...[
           Tooltip(
             message: updateInfo?.title.isNotEmpty == true

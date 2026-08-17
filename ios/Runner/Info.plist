@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>学拍乐园</string>
+	<string>拍习惯</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄作业完成打卡照片与录制学习视频</string>
 	<key>NSMicrophoneUsageDescription</key>

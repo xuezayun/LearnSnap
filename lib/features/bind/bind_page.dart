@@ -98,7 +98,7 @@ class _BindPageState extends State<BindPage> {
       widget.onBound();
     } on ApiException catch (e) {
       final message = e.code == 40101
-          ? '设备绑定码无效或已使用，请让家长在微信小程序「${AppConfig.miniprogramName}」重新打开「设备绑定码」获取新码'
+          ? '设备绑定码无效或已过期，请让家长在微信小程序「${AppConfig.miniprogramName}」打开「设备绑定码」查看或重新生成'
           : e.message;
       setState(() => _error = message);
       _focusNode.requestFocus();
@@ -144,7 +144,7 @@ class _BindPageState extends State<BindPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '孩子端 · 用设备绑定码登录，无需微信',
+                      '用设备绑定码登录',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
                         color: AppColors.inkMuted,
@@ -175,7 +175,7 @@ class _BindPageState extends State<BindPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '设备绑定码由家长在微信小程序「${AppConfig.miniprogramName}」生成。本 App 是孩子端，无需微信登录。',
+                            '设备绑定码由家长在微信小程序「${AppConfig.miniprogramName}」生成。',
                             style: GoogleFonts.nunito(
                               color: AppColors.inkMuted,
                               fontSize: tablet ? 14 : 13,

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -169,11 +168,6 @@ class _CheckinPageState extends State<CheckinPage> {
       maxDuration: checkinMaxVideoDuration,
     );
     if (picked == null || !mounted) return;
-    final bytes = await File(picked.path).length();
-    if (bytes > checkinMaxVideoBytes) {
-      setState(() => _error = '视频不能超过 50MB');
-      return;
-    }
     await _confirmVideo(picked.path, Duration.zero);
   }
 
@@ -267,161 +261,195 @@ class _CheckinPageState extends State<CheckinPage> {
     }
   }
 
+  Future<void> _openAddSheet() async {
+    final adder = _AddButton(
+      size: double.infinity,
+      onCamera:
+          _imageCount < checkinMaxImages ? () => _addPhoto(ImageSource.camera) : null,
+      onGallery:
+          _imageCount < checkinMaxImages ? () => _addPhoto(ImageSource.gallery) : null,
+      onRecordVideo: _videoCount < checkinMaxVideos ? _recordVideo : null,
+      onPickVideo: _videoCount < checkinMaxVideos ? _pickVideo : null,
+    );
+    await adder.showSheet(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final thumbSize = mediaThumbSize(context);
     final tablet = isTablet(context);
     final canAddMore =
         _imageCount < checkinMaxImages || _videoCount < checkinMaxVideos;
     final itemCount = _media.length + (canAddMore ? 1 : 0);
+    final pad = pagePadding(context);
 
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: AppBar(
-        title: Text(widget.revise ? '修订 · ${widget.title}' : widget.title),
+        title: Text(widget.revise ? '修订打卡' : '习惯打卡'),
       ),
       body: AppScaffoldBackground(
         child: Column(
           children: [
             Expanded(
               child: AdaptiveBody(
-                padding: EdgeInsets.fromLTRB(
-                  pagePadding(context),
-                  pagePadding(context),
-                  pagePadding(context),
-                  0,
-                ),
-                child: ListView(
-                  children: [
-                    if (widget.nickname != null &&
-                        widget.nickname!.trim().isNotEmpty) ...[
-                      ChildNameBadge(
-                        nickname: widget.nickname!,
-                        childId: widget.childId,
-                        size: ChildNameBadgeSize.md,
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                    Text(
-                      widget.revise ? '更新今日打卡内容' : '记录你的学习成果',
-                      style: GoogleFonts.nunito(
-                        fontSize: tablet ? 24 : 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.revise
-                          ? '可删除已提交的照片/视频，也可继续添加（最多 $checkinMaxImages 张图 + $checkinMaxVideos 段视频）'
-                          : '最多 $checkinMaxImages 张图 + $checkinMaxVideos 段视频（视频最长 2 分钟，≤50MB）',
-                      style: GoogleFonts.nunito(
-                        color: AppColors.inkMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (_loadingExisting)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else
-                      GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: mediaGridDelegate(context),
-                    itemCount: itemCount,
-                    itemBuilder: (context, index) {
-                      if (index == _media.length) {
-                        return _AddButton(
-                          size: thumbSize,
-                          onCamera: _imageCount < checkinMaxImages
-                              ? () => _addPhoto(ImageSource.camera)
-                              : null,
-                          onGallery: _imageCount < checkinMaxImages
-                              ? () => _addPhoto(ImageSource.gallery)
-                              : null,
-                          onRecordVideo: _videoCount < checkinMaxVideos
-                              ? _recordVideo
-                              : null,
-                          onPickVideo: _videoCount < checkinMaxVideos
-                              ? _pickVideo
-                              : null,
-                        );
-                      }
-                      final item = _media[index];
-                      if (item.isImage) {
-                        return _ImageThumb(
-                          size: thumbSize,
-                          bytes: item.bytes,
-                          remoteUrl: item.remoteUrl,
-                          onRemove: () => setState(() => _media.removeAt(index)),
-                        );
-                      }
-                      return _VideoThumb(
-                        size: thumbSize,
-                        duration: item.duration,
-                        fileSizeBytes: item.fileSizeBytes,
-                        onTap: () => Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => VideoPreviewPage(
-                              filePath: item.filePath,
-                              networkUrl: item.remoteUrl,
-                              previewOnly: true,
+                padding: EdgeInsets.fromLTRB(pad, pad, pad, 0),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (widget.nickname != null &&
+                              widget.nickname!.trim().isNotEmpty) ...[
+                            ChildNameBadge(
+                              nickname: widget.nickname!,
+                              childId: widget.childId,
+                              size: ChildNameBadgeSize.md,
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          Text(
+                            widget.title,
+                            style: GoogleFonts.nunito(
+                              fontSize: tablet ? 26 : 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink,
+                              height: 1.25,
                             ),
                           ),
-                        ),
-                        onRemove: () => setState(() => _media.removeAt(index)),
-                      );
-                    },
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Text(_error!, style: const TextStyle(color: Colors.red)),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          AdaptiveBottomBar(
-            child: FilledButton(
-              onPressed: (_submitting || _loadingExisting) ? null : _submit,
-              style: FilledButton.styleFrom(
-                minimumSize: Size(double.infinity, primaryButtonHeight(context)),
-              ),
-              child: _submitting
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.revise ? '更新今日打卡内容' : '记录你的学习成果',
+                            style: GoogleFonts.nunito(
+                              fontSize: tablet ? 16 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.inkMuted,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '提交中…',
-                          style: GoogleFonts.nunito(
-                            fontSize: tablet ? 20 : 18,
-                            fontWeight: FontWeight.w800,
+                          const SizedBox(height: 16),
+                          _QuotaBar(
+                            imageCount: _imageCount,
+                            videoCount: _videoCount,
+                            maxImages: checkinMaxImages,
+                            maxVideos: checkinMaxVideos,
                           ),
-                        ),
-                      ],
-                    )
-                  : Text(
-                      widget.revise ? '提交修订' : '提交打卡',
-                      style: GoogleFonts.nunito(
-                        fontSize: tablet ? 20 : 18,
-                        fontWeight: FontWeight.w800,
+                          const SizedBox(height: 20),
+                        ],
                       ),
                     ),
+                    if (_loadingExisting)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_media.isEmpty && canAddMore)
+                      SliverToBoxAdapter(
+                        child: _EmptyMediaCard(onAdd: _openAddSheet),
+                      )
+                    else
+                      SliverGrid(
+                        gridDelegate: mediaGridDelegate(context),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            if (index == _media.length) {
+                              return _AddButton(
+                                size: double.infinity,
+                                onCamera: _imageCount < checkinMaxImages
+                                    ? () => _addPhoto(ImageSource.camera)
+                                    : null,
+                                onGallery: _imageCount < checkinMaxImages
+                                    ? () => _addPhoto(ImageSource.gallery)
+                                    : null,
+                                onRecordVideo: _videoCount < checkinMaxVideos
+                                    ? _recordVideo
+                                    : null,
+                                onPickVideo: _videoCount < checkinMaxVideos
+                                    ? _pickVideo
+                                    : null,
+                              );
+                            }
+                            final item = _media[index];
+                            if (item.isImage) {
+                              return _ImageThumb(
+                                bytes: item.bytes,
+                                remoteUrl: item.remoteUrl,
+                                onRemove: () =>
+                                    setState(() => _media.removeAt(index)),
+                              );
+                            }
+                            return _VideoThumb(
+                              duration: item.duration,
+                              fileSizeBytes: item.fileSizeBytes,
+                              onTap: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) => VideoPreviewPage(
+                                    filePath: item.filePath,
+                                    networkUrl: item.remoteUrl,
+                                    previewOnly: true,
+                                  ),
+                                ),
+                              ),
+                              onRemove: () =>
+                                  setState(() => _media.removeAt(index)),
+                            );
+                          },
+                          childCount: itemCount,
+                        ),
+                      ),
+                    if (_error != null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: _ErrorBanner(message: _error!),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+            AdaptiveBottomBar(
+              child: FilledButton(
+                onPressed:
+                    (_submitting || _loadingExisting || _media.isEmpty)
+                        ? null
+                        : _submit,
+                style: FilledButton.styleFrom(
+                  minimumSize:
+                      Size(double.infinity, primaryButtonHeight(context)),
+                ),
+                child: _submitting
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '提交中…',
+                            style: GoogleFonts.nunito(
+                              fontSize: tablet ? 20 : 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        widget.revise ? '提交修订' : '提交打卡',
+                        style: GoogleFonts.nunito(
+                          fontSize: tablet ? 20 : 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -430,13 +458,11 @@ class _CheckinPageState extends State<CheckinPage> {
 
 class _ImageThumb extends StatelessWidget {
   const _ImageThumb({
-    required this.size,
     required this.onRemove,
     this.bytes,
     this.remoteUrl,
   });
 
-  final double size;
   final Uint8List? bytes;
   final String? remoteUrl;
   final VoidCallback onRemove;
@@ -445,38 +471,38 @@ class _ImageThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget image;
     if (bytes != null) {
-      image = Image.memory(bytes!, width: size, height: size, fit: BoxFit.cover);
+      image = Image.memory(bytes!, fit: BoxFit.cover);
     } else if (remoteUrl != null && remoteUrl!.isNotEmpty) {
       image = Image.network(
         sanitizeMediaUrl(remoteUrl!),
-        width: size,
-        height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, error, stackTrace) => Container(
-          width: size,
-          height: size,
+        errorBuilder: (_, error, stackTrace) => ColoredBox(
           color: const Color(0xFFE8ECF0),
-          alignment: Alignment.center,
-          child: const Icon(Icons.broken_image_outlined),
+          child: Center(
+            child: Icon(Icons.broken_image_outlined, color: AppColors.inkFaint),
+          ),
         ),
       );
     } else {
-      image = Container(
-        width: size,
-        height: size,
+      image = ColoredBox(
         color: const Color(0xFFE8ECF0),
-        alignment: Alignment.center,
-        child: const Icon(Icons.image_outlined),
+        child: Center(
+          child: Icon(Icons.image_outlined, color: AppColors.inkFaint),
+        ),
       );
     }
     return Stack(
-      clipBehavior: Clip.none,
+      fit: StackFit.expand,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: image,
         ),
-        Positioned(top: -8, right: -8, child: _RemoveBtn(onRemove: onRemove)),
+        Positioned(
+          top: 6,
+          right: 6,
+          child: _RemoveBtn(onRemove: onRemove),
+        ),
       ],
     );
   }
@@ -484,14 +510,12 @@ class _ImageThumb extends StatelessWidget {
 
 class _VideoThumb extends StatelessWidget {
   const _VideoThumb({
-    required this.size,
     required this.duration,
     required this.onTap,
     required this.onRemove,
     this.fileSizeBytes,
   });
 
-  final double size;
   final Duration? duration;
   final int? fileSizeBytes;
   final VoidCallback onTap;
@@ -506,43 +530,49 @@ class _VideoThumb extends StatelessWidget {
     final sizeLabel =
         fileSizeBytes != null && fileSizeBytes! > 0 ? formatFileSize(fileSizeBytes!) : null;
     final parts = <String>[
-      ?timeLabel,
-      ?sizeLabel,
+      if (timeLabel != null) timeLabel,
+      if (sizeLabel != null) sizeLabel,
     ];
     final label = parts.isEmpty ? '视频' : parts.join(' · ');
-    final iconSize = isTablet(context) ? 36.0 : 30.0;
+    final iconSize = isTablet(context) ? 40.0 : 34.0;
     return Stack(
-      clipBehavior: Clip.none,
+      fit: StackFit.expand,
       children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(12),
-            ),
+        Material(
+          color: const Color(0xFF1A2A2E),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.videocam, color: Colors.white, size: iconSize),
-                const SizedBox(height: 4),
+                Icon(Icons.play_circle_fill_rounded,
+                    color: Colors.white, size: iconSize),
+                const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
                     label,
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    style: GoogleFonts.nunito(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
-        Positioned(top: -8, right: -8, child: _RemoveBtn(onRemove: onRemove)),
+        Positioned(
+          top: 6,
+          right: 6,
+          child: _RemoveBtn(onRemove: onRemove),
+        ),
       ],
     );
   }
@@ -555,13 +585,19 @@ class _RemoveBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton.filledTonal(
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white,
-        visualDensity: VisualDensity.compact,
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: AppColors.ink.withValues(alpha: 0.2),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onRemove,
+        child: const Padding(
+          padding: EdgeInsets.all(6),
+          child: Icon(Icons.close_rounded, size: 16, color: AppColors.ink),
+        ),
       ),
-      onPressed: onRemove,
-      icon: const Icon(Icons.close, size: 18),
     );
   }
 }
@@ -581,7 +617,7 @@ class _AddButton extends StatelessWidget {
   final VoidCallback? onRecordVideo;
   final VoidCallback? onPickVideo;
 
-  Future<void> _showAddSheet(BuildContext context) async {
+  Future<void> showSheet(BuildContext context) async {
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -607,29 +643,245 @@ class _AddButton extends StatelessWidget {
     }
   }
 
-  Widget _buildTile() {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade400),
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.brandSoft,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => showSheet(context),
+        borderRadius: BorderRadius.circular(16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.brand.withValues(alpha: 0.35),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                size: size == double.infinity
+                    ? (isTablet(context) ? 36 : 30)
+                    : (size >= 140 ? 32 : 24),
+                color: AppColors.brandDeep,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '添加',
+                style: GoogleFonts.nunito(
+                  fontSize: isTablet(context) ? 15 : 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.brandDeep,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+}
+
+class _QuotaBar extends StatelessWidget {
+  const _QuotaBar({
+    required this.imageCount,
+    required this.videoCount,
+    required this.maxImages,
+    required this.maxVideos,
+  });
+
+  final int imageCount;
+  final int videoCount;
+  final int maxImages;
+  final int maxVideos;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _QuotaChip(
+          icon: Icons.photo_outlined,
+          label: '图片 $imageCount/$maxImages',
+          active: imageCount > 0,
+        ),
+        _QuotaChip(
+          icon: Icons.videocam_outlined,
+          label: '视频 $videoCount/$maxVideos',
+          active: videoCount > 0,
+        ),
+        _QuotaChip(
+          icon: Icons.timer_outlined,
+          label: '≤2分钟·处理后≤50MB',
+          active: false,
+          muted: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _QuotaChip extends StatelessWidget {
+  const _QuotaChip({
+    required this.icon,
+    required this.label,
+    required this.active,
+    this.muted = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = muted
+        ? const Color(0xFFF0F3F5)
+        : (active ? AppColors.brandSoft : Colors.white);
+    final fg = muted
+        ? AppColors.inkFaint
+        : (active ? AppColors.brandDeep : AppColors.inkMuted);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: muted
+              ? Colors.transparent
+              : (active
+                  ? AppColors.brand.withValues(alpha: 0.25)
+                  : const Color(0xFFE2E8EC)),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.add_circle_outline, size: size >= 140 ? 32 : 24),
-          Text('添加', style: TextStyle(fontSize: size >= 140 ? 14 : 12)),
+          Icon(icon, size: 16, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+class _EmptyMediaCard extends StatelessWidget {
+  const _EmptyMediaCard({required this.onAdd});
+
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showAddSheet(context),
-      child: _buildTile(),
+    final tablet = isTablet(context);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onAdd,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: tablet ? 48 : 36,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.brand.withValues(alpha: 0.28),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: tablet ? 72 : 64,
+                height: tablet ? 72 : 64,
+                decoration: const BoxDecoration(
+                  color: AppColors.brandSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  size: tablet ? 34 : 30,
+                  color: AppColors.brandDeep,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '添加照片或视频',
+                style: GoogleFonts.nunito(
+                  fontSize: tablet ? 20 : 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '拍照 / 相册 / 录像，点这里开始',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AppColors.danger, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.danger,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -686,7 +938,7 @@ class _AddMediaSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '最多 3 张图 + 1 段视频',
+            '最多 $checkinMaxImages 张图 + $checkinMaxVideos 段视频',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               fontSize: 14,
@@ -740,7 +992,7 @@ class _AddMediaSheet extends StatelessWidget {
                   child: _AddMediaOption(
                     icon: Icons.video_library_rounded,
                     label: '相册视频',
-                    hint: '≤50MB',
+                    hint: '≤2分钟 · 处理后≤50MB',
                     tint: const Color(0xFF5B8DEF),
                     soft: const Color(0xFFEEF3FC),
                     value: 'pick_video',
@@ -829,3 +1081,4 @@ class _AddMediaOption extends StatelessWidget {
     );
   }
 }
+

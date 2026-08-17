@@ -1,3 +1,5 @@
+import 'honor_badge.dart';
+
 class BeanLedgerEntry {
   BeanLedgerEntry({
     required this.id,
@@ -58,7 +60,8 @@ class BeanLedgerPage {
     required this.page,
     required this.pageSize,
     required this.hasMore,
-  });
+    HonorBadge? honorBadge,
+  }) : honorBadge = honorBadge ?? HonorBadge.empty();
 
   final String nickname;
   final int balance;
@@ -67,6 +70,7 @@ class BeanLedgerPage {
   final int page;
   final int pageSize;
   final bool hasMore;
+  final HonorBadge honorBadge;
 
   factory BeanLedgerPage.fromJson(Map<String, dynamic> json) {
     final items = json['items'] as List<dynamic>? ?? [];
@@ -81,6 +85,11 @@ class BeanLedgerPage {
       page: BeanLedgerEntry._readInt(json['page']),
       pageSize: BeanLedgerEntry._readInt(json['page_size']),
       hasMore: json['has_more'] as bool? ?? false,
+      honorBadge: HonorBadge.fromJson(
+        json['honor_badge'] is Map
+            ? Map<String, dynamic>.from(json['honor_badge'] as Map)
+            : null,
+      ),
     );
   }
 }

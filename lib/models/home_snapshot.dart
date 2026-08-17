@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'checkin_media.dart';
 import 'child_checkin_detail.dart';
+import 'honor_badge.dart';
 
 class CheckinSubmitResult {
   const CheckinSubmitResult({
@@ -96,7 +97,9 @@ class TodayBox {
     this.dailyCheckinTaskLimit = 3,
     this.dailyCheckinUsed = 0,
     this.membershipTier = 'free',
-  });
+    this.reviewToolsEnabled = false,
+    HonorBadge? honorBadge,
+  }) : honorBadge = honorBadge ?? HonorBadge.empty();
 
   final String date;
   final String nickname;
@@ -108,6 +111,8 @@ class TodayBox {
   final int dailyCheckinTaskLimit;
   final int dailyCheckinUsed;
   final String membershipTier;
+  final bool reviewToolsEnabled;
+  final HonorBadge honorBadge;
 
   factory TodayBox.fromJson(Map<String, dynamic> json) {
     final rawBoxes = json['boxes'] as List<dynamic>? ?? [];
@@ -121,10 +126,16 @@ class TodayBox {
       dailyCheckinTaskLimit: _readInt(json['daily_checkin_task_limit'], fallback: 3),
       dailyCheckinUsed: _readInt(json['daily_checkin_used']),
       membershipTier: json['membership_tier'] as String? ?? 'free',
+      reviewToolsEnabled: json['review_tools_enabled'] as bool? ?? false,
       boxes: rawBoxes
           .whereType<Map<String, dynamic>>()
           .map(TodayBoxItem.fromJson)
           .toList(),
+      honorBadge: HonorBadge.fromJson(
+        json['honor_badge'] is Map
+            ? Map<String, dynamic>.from(json['honor_badge'] as Map)
+            : null,
+      ),
     );
   }
 

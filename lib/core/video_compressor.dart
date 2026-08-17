@@ -54,7 +54,7 @@ Future<CompressedVideo?> _runCompress(
 
 CompressedVideo _fallbackOrThrow(String inputPath, int originalBytes) {
   if (originalBytes > checkinMaxVideoBytes) {
-    throw Exception('视频不能超过 50MB');
+    throw Exception('压缩后仍超过 50MB，请缩短录制时长或降低画质');
   }
   return CompressedVideo(path: inputPath, bytes: originalBytes);
 }

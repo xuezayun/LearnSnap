@@ -14,7 +14,9 @@ import '../../widgets/app_scaffold_bg.dart';
 import '../beans/bean_ledger_page.dart';
 import '../checkin/checkin_detail_page.dart';
 import '../checkin/checkin_page.dart';
+import '../honor/honor_badge_page.dart';
 import '../report/checkin_report_page.dart';
+import '../review_tools/review_tools_page.dart';
 import 'widgets/all_done_card.dart';
 import 'widgets/empty_tasks_hint.dart';
 import 'widgets/home_greeting.dart';
@@ -248,7 +250,33 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           initialBalance: balance,
         ),
       ),
-    );
+    ).then((_) {
+      if (mounted) _load(silent: true);
+    });
+  }
+
+  void _openHonorBadge() {
+    final badge = _snapshot?.todayBox.honorBadge;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HonorBadgePage(
+          api: _api,
+          initial: badge,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _load(silent: true);
+    });
+  }
+
+  void _openReviewTools() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReviewToolsPage(api: _api),
+      ),
+    ).then((_) {
+      if (mounted) _load(silent: true);
+    });
   }
 
   void _showLogoutDialog() {
@@ -257,7 +285,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       builder: (context) => AlertDialog(
         title: const Text('重新绑定设备？'),
         content: Text(
-          '退出后将清除本地登录信息与缓存。再次使用需让家长在「${AppConfig.miniprogramName}」重新生成设备绑定码。',
+          '退出后将清除本地登录信息与缓存。再次使用可输入家长小程序中的设备绑定码（未过期即可，无需重新生成）。',
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
@@ -283,14 +311,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final tablet = isTablet(context);
-    final buttonHeight = primaryButtonHeight(context);
     final snapshot = _snapshot;
     final boxes = snapshot?.todayBox.boxes ?? [];
     final sections = groupTasksByStatus(boxes);
-    final nextBox = boxes.cast<TodayBoxItem?>().firstWhere(
-          (b) => b != null && !b.submitted,
-          orElse: () => null,
-        );
     final hasActionable =
         boxes.any((b) => !b.submitted || (b.canRevise && b.checkinStatus == 'rejected'));
     final total = snapshot?.todayBox.total ?? 0;
@@ -307,7 +330,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 color: AppColors.brand,
                 onRefresh: _load,
                 child: SafeArea(
-                  bottom: nextBox == null,
                   child: AdaptiveBody(
                     child: _loading
                         ? const Center(child: CircularProgressIndicator())
@@ -343,12 +365,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     onLogout: _showLogoutDialog,
                                     updateInfo: _updateInfo,
                                     onUpdateTap: _onUpdateTap,
+                                    showReviewTools:
+                                        snapshot?.todayBox.reviewToolsEnabled ==
+                                            true,
+                                    onReviewToolsTap: _openReviewTools,
                                   ),
                                   const SizedBox(height: 18),
                                   if (snapshot != null) ...[
                                     HomeGreeting(
                                       nickname: snapshot.todayBox.nickname,
                                       tablet: tablet,
+                                      honorBadge: snapshot.todayBox.honorBadge,
+                                      onHonorTap: _openHonorBadge,
                                     ),
                                     const SizedBox(height: 18),
                                     TodayProgressPanel(
@@ -414,21 +442,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            if (nextBox != null && !_loading && _error == null)
-              AdaptiveBottomBar(
-                child: FilledButton.icon(
-                  onPressed: () => _openCheckin(nextBox),
-                  icon: const Icon(Icons.camera_alt_rounded),
-                  label: const Text('去打卡'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: Size(double.infinity, buttonHeight),
-                    textStyle: GoogleFonts.nunito(
-                      fontSize: tablet ? 20 : 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

@@ -2,17 +2,19 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
-import '../core/device_info_collector.dart';
-import '../models/home_snapshot.dart';
 import '../core/api_client.dart';
 import '../core/cos_uploader.dart';
+import '../core/device_info_collector.dart';
 import '../core/local_cache.dart';
 import '../core/session_store.dart';
+import '../models/bean_ledger.dart';
 import '../models/checkin_media.dart';
 import '../models/checkin_report.dart';
 import '../models/child_checkin_detail.dart';
-import '../models/bean_ledger.dart';
 import '../models/client_version.dart';
+import '../models/home_snapshot.dart';
+import '../models/honor_badge.dart';
+import '../models/review_tools.dart';
 
 String ensureVideoFilename(String name) {
   final ext = p.extension(name).toLowerCase();
@@ -117,10 +119,34 @@ class LearnSnapApi {
     if (id == null) {
       throw ApiException('未绑定孩子账号');
     }
-    final path =
-        '/children/$id/bean-ledger?page=$page&page_size=$pageSize';
+    final path = '/children/$id/bean-ledger?page=$page&page_size=$pageSize';
     final data = await _client.get(path);
     return BeanLedgerPage.fromJson(data);
+  }
+
+  Future<HonorBadge> fetchHonorBadge({int? childId}) async {
+    final id = childId ?? await _sessionStore.childId;
+    if (id == null) {
+      throw ApiException('未绑定孩子账号');
+    }
+    final data = await _client.get('/children/$id/honor-badge');
+    return HonorBadge.fromJson(
+      data is Map ? Map<String, dynamic>.from(data as Map) : null,
+    );
+  }
+
+  Future<HonorBadge> redeemHonorStars({int count = 1, int? childId}) async {
+    final id = childId ?? await _sessionStore.childId;
+    if (id == null) {
+      throw ApiException('未绑定孩子账号');
+    }
+    final data = await _client.post(
+      '/children/$id/honor-badge/redeem',
+      data: {'count': count},
+    );
+    return HonorBadge.fromJson(
+      data is Map ? Map<String, dynamic>.from(data as Map) : null,
+    );
   }
 
   Future<HomeSnapshot> fetchHomeSnapshot() async {
@@ -148,8 +174,61 @@ class LearnSnapApi {
   }
 
   Future<List<CheckinMediaItem>> fetchCheckinMedia(int checkinId) async {
-    final detail = await fetchCheckinDetail(checkinId);
-    return detail.media;
+    final data = await _client.get('/checkins/$checkinId/mine');
+    final raw = data['media'];
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map((e) => CheckinMediaItem.fromSubmittedJson(Map<String, dynamic>.from(e)))
+        .where((m) => m.hasRemotePreview || m.isExistingRemote)
+        .toList();
+  }
+
+  Future<ReviewToolsMeta> fetchReviewToolsMeta() async {
+    final data = await _client.get('/child/review-tools');
+    return ReviewToolsMeta.fromJson(data);
+  }
+
+  Future<ReviewToolsAssignment> assignReviewToolTask({
+    int? templateId,
+    String? title,
+    String taskType = 'study',
+    int durationMin = 15,
+  }) async {
+    final body = <String, dynamic>{
+      'task_type': taskType,
+      'duration_min': durationMin,
+    };
+    if (templateId != null) body['template_id'] = templateId;
+    if (title != null && title.trim().isNotEmpty) {
+      body['title'] = title.trim();
+    }
+    final data = await _client.post('/child/review-tools/assign', data: body);
+    return ReviewToolsAssignment.fromJson(data);
+  }
+
+  Future<List<ReviewToolsPendingItem>> fetchReviewToolsPending() async {
+    final data = await _client.get('/child/review-tools/pending');
+    final items = data['items'] as List<dynamic>? ?? [];
+    return items
+        .whereType<Map>()
+        .map((e) => ReviewToolsPendingItem.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<ReviewToolsApproveResult> approveReviewToolCheckin({
+    required int checkinId,
+    required String rating,
+    String comment = '',
+  }) async {
+    final data = await _client.post(
+      '/child/review-tools/checkins/$checkinId/approve',
+      data: {
+        'rating': rating,
+        'comment': comment,
+      },
+    );
+    return ReviewToolsApproveResult.fromJson(data);
   }
 
   Future<CheckinSubmitResult> submitCheckin({
@@ -189,18 +268,15 @@ class LearnSnapApi {
         revised: data['revised'] as bool? ?? false,
       );
     }
-
     if (media.any((m) => m.isExistingRemote && !m.needsUpload)) {
       throw ApiException('当前环境无法保留已提交媒体，请全部重新添加后提交');
     }
-
     final formData = FormData.fromMap({
       'assignment_id': assignmentId.toString(),
       'note': note,
       if (idempotencyKey != null && idempotencyKey.isNotEmpty)
         'idempotency_key': idempotencyKey,
     });
-
     final hasVideo = media.any((item) => item.isVideo);
     for (final item in media) {
       if (item.isImage) {
@@ -222,12 +298,12 @@ class LearnSnapApi {
         );
       }
     }
-
     final data = await _client.postMultipart(
       '/checkins/submit',
       formData,
       sendTimeout: hasVideo ? const Duration(seconds: 180) : const Duration(seconds: 120),
-      receiveTimeout: hasVideo ? const Duration(seconds: 180) : const Duration(seconds: 120),
+      receiveTimeout:
+          hasVideo ? const Duration(seconds: 180) : const Duration(seconds: 120),
     );
     return CheckinSubmitResult(
       beans: _readInt(data['preheat_beans']),

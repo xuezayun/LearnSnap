@@ -20,8 +20,8 @@ pod install
 cd ..
 
 echo "正在编译 IPA (Release)..."
-# 注意: 签名通常由 Xcode 的编译设置（Provisioning Profile / Team ID）自动处理
-# 你也可以通过 --export-options-plist 参数指定导出配置
+# Team ID 9QQTRV79MF 已写入 ios/Runner.xcodeproj（Automatic signing）
+# Codemagic 构建请使用仓库根目录的 codemagic.yaml
 flutter build ipa --release
 
 echo -e "\n编译完成！"
