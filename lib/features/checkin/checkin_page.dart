@@ -78,7 +78,7 @@ class _CheckinPageState extends State<CheckinPage> {
           ..addAll(items);
         _loadingExisting = false;
         if (items.isEmpty) {
-          _error = '暂无已提交的图片或视频，可重新添加';
+          _error = '还没有照片，再拍一张吧';
         }
       });
     } on ApiException catch (e) {
@@ -107,7 +107,7 @@ class _CheckinPageState extends State<CheckinPage> {
 
   Future<void> _addPhoto(ImageSource source) async {
     if (_imageCount >= checkinMaxImages) {
-      setState(() => _error = '单次打卡最多 $checkinMaxImages 张图片');
+      setState(() => _error = '这次最多拍 $checkinMaxImages 张照片哦');
       return;
     }
     if (source == ImageSource.camera) {
@@ -132,7 +132,7 @@ class _CheckinPageState extends State<CheckinPage> {
     for (final photo in photos) {
       if (!mounted) return;
       if (added >= remaining) {
-        setState(() => _error = '单次打卡最多 $checkinMaxImages 张图片');
+        setState(() => _error = '这次最多拍 $checkinMaxImages 张照片哦');
         break;
       }
       final bytes = await photo.readAsBytes();
@@ -148,7 +148,7 @@ class _CheckinPageState extends State<CheckinPage> {
 
   Future<void> _recordVideo() async {
     if (_videoCount >= checkinMaxVideos) {
-      setState(() => _error = '单次打卡最多 $checkinMaxVideos 段视频');
+      setState(() => _error = '这次最多拍 $checkinMaxVideos 段视频哦');
       return;
     }
     final result = await Navigator.of(context).push<VideoRecordResult>(
@@ -160,7 +160,7 @@ class _CheckinPageState extends State<CheckinPage> {
 
   Future<void> _pickVideo() async {
     if (_videoCount >= checkinMaxVideos) {
-      setState(() => _error = '单次打卡最多 $checkinMaxVideos 段视频');
+      setState(() => _error = '这次最多拍 $checkinMaxVideos 段视频哦');
       return;
     }
     final picked = await _picker.pickVideo(
@@ -173,7 +173,7 @@ class _CheckinPageState extends State<CheckinPage> {
 
   Future<void> _confirmVideo(String path, Duration duration) async {
     if (_videoCount >= checkinMaxVideos) {
-      setState(() => _error = '单次打卡最多 $checkinMaxVideos 段视频');
+      setState(() => _error = '这次最多拍 $checkinMaxVideos 段视频哦');
       return;
     }
     final ok = await Navigator.of(context).push<bool>(
@@ -195,7 +195,7 @@ class _CheckinPageState extends State<CheckinPage> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('正在压缩视频…'),
+                  Text('正在把视频变小一点…'),
                 ],
               ),
             ),
@@ -233,7 +233,7 @@ class _CheckinPageState extends State<CheckinPage> {
 
   Future<void> _submit() async {
     if (_media.isEmpty) {
-      setState(() => _error = '请至少添加一张照片或一段视频');
+      setState(() => _error = '先拍一张照片或一小段视频吧');
       return;
     }
     setState(() {
@@ -285,7 +285,7 @@ class _CheckinPageState extends State<CheckinPage> {
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: AppBar(
-        title: Text(widget.revise ? '修订打卡' : '习惯打卡'),
+        title: Text(widget.revise ? '再拍一次' : '拍下好习惯'),
       ),
       body: AppScaffoldBackground(
         child: Column(
@@ -319,7 +319,7 @@ class _CheckinPageState extends State<CheckinPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            widget.revise ? '更新今日打卡内容' : '记录你的学习成果',
+                            widget.revise ? '再拍一张会更好' : '把作品放进框里',
                             style: GoogleFonts.nunito(
                               fontSize: tablet ? 16 : 14,
                               fontWeight: FontWeight.w600,
@@ -432,7 +432,7 @@ class _CheckinPageState extends State<CheckinPage> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            '提交中…',
+                            '正在把照片送过去…',
                             style: GoogleFonts.nunito(
                               fontSize: tablet ? 20 : 18,
                               fontWeight: FontWeight.w800,
@@ -441,7 +441,7 @@ class _CheckinPageState extends State<CheckinPage> {
                         ],
                       )
                     : Text(
-                        widget.revise ? '提交修订' : '提交打卡',
+                        widget.revise ? '重新交一次' : '交给家长看',
                         style: GoogleFonts.nunito(
                           fontSize: tablet ? 20 : 18,
                           fontWeight: FontWeight.w800,
@@ -671,7 +671,7 @@ class _AddButton extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '添加',
+                '再拍',
                 style: GoogleFonts.nunito(
                   fontSize: isTablet(context) ? 15 : 13,
                   fontWeight: FontWeight.w800,
@@ -707,7 +707,7 @@ class _QuotaBar extends StatelessWidget {
       children: [
         _QuotaChip(
           icon: Icons.photo_outlined,
-          label: '图片 $imageCount/$maxImages',
+          label: '照片 $imageCount/$maxImages',
           active: imageCount > 0,
         ),
         _QuotaChip(
@@ -717,7 +717,7 @@ class _QuotaBar extends StatelessWidget {
         ),
         _QuotaChip(
           icon: Icons.timer_outlined,
-          label: '≤2分钟·处理后≤50MB',
+          label: '视频别太长哦',
           active: false,
           muted: true,
         ),
@@ -823,7 +823,7 @@ class _EmptyMediaCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                '添加照片或视频',
+                '把作品放进框里',
                 style: GoogleFonts.nunito(
                   fontSize: tablet ? 20 : 18,
                   fontWeight: FontWeight.w800,
@@ -832,7 +832,7 @@ class _EmptyMediaCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '拍照 / 相册 / 录像，点这里开始',
+                '点这里拍照或拍小视频',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                   fontSize: 14,
@@ -928,7 +928,7 @@ class _AddMediaSheet extends StatelessWidget {
             ),
           ),
           Text(
-            '添加打卡内容',
+            '怎么拍？',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               fontSize: 20,
@@ -938,7 +938,7 @@ class _AddMediaSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '最多 $checkinMaxImages 张图 + $checkinMaxVideos 段视频',
+            '最多 $checkinMaxImages 张照片，还可以拍一小段视频',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               fontSize: 14,
@@ -992,7 +992,7 @@ class _AddMediaSheet extends StatelessWidget {
                   child: _AddMediaOption(
                     icon: Icons.video_library_rounded,
                     label: '相册视频',
-                    hint: '≤2分钟 · 处理后≤50MB',
+                    hint: '选一段短视频',
                     tint: const Color(0xFF5B8DEF),
                     soft: const Color(0xFFEEF3FC),
                     value: 'pick_video',
@@ -1000,15 +1000,24 @@ class _AddMediaSheet extends StatelessWidget {
                 ),
               ],
             ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              '取消',
-              style: GoogleFonts.nunito(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkMuted,
+          const SizedBox(height: 16),
+          Material(
+            color: const Color(0xFFF1F4F5),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: () => Navigator.pop(context),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  '取消',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
               ),
             ),
           ),

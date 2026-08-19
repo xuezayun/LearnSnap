@@ -62,7 +62,7 @@ class _BindPageState extends State<BindPage> {
     if (pasted.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('剪贴板中没有可用的设备绑定码')),
+        const SnackBar(content: Text('还没有可粘贴的暗号')),
       );
       return;
     }
@@ -82,7 +82,7 @@ class _BindPageState extends State<BindPage> {
   Future<void> _bind() async {
     final code = _code;
     if (code.length != _bindCodeLength) {
-      setState(() => _error = '请输入完整的 $_bindCodeLength 位设备绑定码');
+      setState(() => _error = '请把 8 位暗号填完整哦');
       return;
     }
     setState(() {
@@ -98,7 +98,7 @@ class _BindPageState extends State<BindPage> {
       widget.onBound();
     } on ApiException catch (e) {
       final message = e.code == 40101
-          ? '设备绑定码无效或已过期，请让家长在微信小程序「${AppConfig.miniprogramName}」打开「设备绑定码」查看或重新生成'
+          ? '暗号不对或过期了，请爸爸妈妈再看一眼小程序里的暗号'
           : e.message;
       setState(() => _error = message);
       _focusNode.requestFocus();
@@ -144,7 +144,7 @@ class _BindPageState extends State<BindPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '用设备绑定码登录',
+                      '请家长把暗号告诉你',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
                         color: AppColors.inkMuted,
@@ -166,7 +166,7 @@ class _BindPageState extends State<BindPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            '输入家长提供的设备绑定码',
+                            '输入 8 位暗号',
                             style: GoogleFonts.nunito(
                               fontSize: tablet ? 18 : 16,
                               fontWeight: FontWeight.w800,
@@ -175,7 +175,7 @@ class _BindPageState extends State<BindPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '设备绑定码由家长在微信小程序「${AppConfig.miniprogramName}」生成。',
+                            '暗号由爸爸妈妈在微信小程序「${AppConfig.miniprogramName}」里生成。',
                             style: GoogleFonts.nunito(
                               color: AppColors.inkMuted,
                               fontSize: tablet ? 14 : 13,
@@ -264,7 +264,7 @@ class _BindPageState extends State<BindPage> {
                                 Icons.content_paste_rounded,
                                 size: 20,
                               ),
-                              label: const Text('从剪贴板粘贴'),
+                              label: const Text('粘贴暗号'),
                             ),
                           ),
                           if (_error != null) ...[
@@ -294,7 +294,7 @@ class _BindPageState extends State<BindPage> {
                                 );
                               },
                               child: Text(
-                                _showNoCodeHelp ? '收起说明' : '没有设备绑定码？',
+                                _showNoCodeHelp ? '收起说明' : '没有暗号？',
                                 style: GoogleFonts.nunito(
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.brandDeep,
@@ -311,7 +311,7 @@ class _BindPageState extends State<BindPage> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
-                                '请让爸爸妈妈用微信搜索小程序「${AppConfig.miniprogramName}」→ 添加孩子 → 打开「设备绑定码」→ 复制给你。\n\n（设备绑定码不是会员邀请码。）',
+                                '请让爸爸妈妈用微信搜索小程序「${AppConfig.miniprogramName}」→ 添加孩子 → 打开「设备绑定码」→ 把暗号告诉你。\n\n（暗号不是会员邀请码哦。）',
                                 style: GoogleFonts.nunito(
                                   color: AppColors.ink,
                                   fontWeight: FontWeight.w600,
@@ -326,7 +326,7 @@ class _BindPageState extends State<BindPage> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      '设备绑定码为 8 位字母或数字，不区分大小写',
+                      '暗号是 8 位字母或数字，大小写都可以',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
                         color: AppColors.inkFaint,
@@ -349,7 +349,7 @@ class _BindPageState extends State<BindPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('绑定并开始'),
+                          : const Text('开始探险'),
                     ),
                   ],
                 ),

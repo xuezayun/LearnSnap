@@ -6,6 +6,7 @@ import '../../models/bean_ledger.dart';
 import '../../models/honor_badge.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/kid_style.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import '../../widgets/child_name_badge.dart';
 import '../honor/honor_badge_page.dart';
@@ -95,10 +96,9 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
   @override
   Widget build(BuildContext context) {
     final padding = pagePadding(context);
-    final color = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('乐豆流水')),
+      appBar: AppBar(title: const Text('我的金豆')),
       body: AppScaffoldBackground(
         child: RefreshIndicator(
         onRefresh: () => _load(reset: true),
@@ -151,20 +151,20 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.bolt_rounded, color: color, size: 34),
-                                  const SizedBox(width: 6),
+                                  const BeanGlyph(size: 34),
+                                  const SizedBox(width: 8),
                                   Text(
                                     '$_balance',
                                     style: GoogleFonts.nunito(
                                       fontSize: 40,
                                       fontWeight: FontWeight.w800,
-                                      color: color,
+                                      color: AppColors.beanGoldDeep,
                                       height: 1,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '乐豆',
+                                    '金豆',
                                     style: GoogleFonts.nunito(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -208,7 +208,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                                 Row(
                                   children: [
                                     Text(
-                                      '荣誉徽章',
+                                      '我的奖杯',
                                       style: GoogleFonts.nunito(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -217,7 +217,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                                     ),
                                     const Spacer(),
                                     Text(
-                                      '去兑换 ›',
+                                      '去点亮 ›',
                                       style: GoogleFonts.nunito(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
@@ -243,7 +243,7 @@ class _BeanLedgerPageState extends State<BeanLedgerPage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                              '还没有乐豆流水，完成打卡或获得家长奖励后会显示在这里',
+                              '还没有金豆记录，去拍照就能赚到哦',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.nunito(
                                 color: AppColors.inkMuted,

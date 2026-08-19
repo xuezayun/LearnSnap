@@ -46,13 +46,13 @@ class TodayBoxItem {
   bool get isFinalized => submitted && !canRevise;
 
   String get displaySubtitle {
-    if (quotaBlocked && !submitted) return '今日打卡次数已达上限';
-    if (!submitted) return '最多 3 张图 + 1 段视频';
+    if (quotaBlocked && !submitted) return '今天次数用完啦';
+    if (!submitted) return '拍照就能过关';
     if (canRevise) {
-      if (checkinStatus == 'rejected') return '已驳回 · 点击修订';
-      return '${statusLabel.isNotEmpty ? statusLabel : '已提交'} · 点击修订';
+      if (checkinStatus == 'rejected') return '再拍一次会更好';
+      return '等家长看';
     }
-    return statusLabel.isNotEmpty ? statusLabel : '已提交';
+    return statusLabel.isNotEmpty ? statusLabel : '过关啦';
   }
 
   factory TodayBoxItem.fromJson(Map<String, dynamic> json) {

@@ -41,18 +41,19 @@ class ParentReviewSummary {
   String get displayRatingLabel {
     if (ratingLabel.isNotEmpty &&
         ratingLabel != '家长已通过' &&
-        ratingLabel != '家长已鼓励') {
-      return ratingLabel;
+        ratingLabel != '家长已鼓励' &&
+        ratingLabel != '已驳回') {
+      return ratingLabel == '通过' ? '过关啦' : ratingLabel;
     }
     switch (rating) {
       case 'excellent':
         return '优秀';
       case 'pass':
-        return '通过';
+        return '过关啦';
       case 'encourage':
         return '加油';
       case 'rejected':
-        return '已驳回';
+        return '再试试';
       default:
         return ratingLabel.isNotEmpty ? ratingLabel : '已评价';
     }

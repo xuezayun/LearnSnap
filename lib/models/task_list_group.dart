@@ -29,13 +29,13 @@ TaskCategory categoryForBox(TodayBoxItem box) {
 String titleForCategory(TaskCategory category) {
   switch (category) {
     case TaskCategory.pending:
-      return '待打卡';
+      return '还没拍';
     case TaskCategory.rejected:
-      return '已驳回 · 可修订';
+      return '再拍一次会更好';
     case TaskCategory.awaitingReview:
-      return '已提交 · 待家长审核';
+      return '等家长看';
     case TaskCategory.completed:
-      return '家长已审核';
+      return '过关啦';
   }
 }
 

@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
-import '../../core/app_config.dart';
 import '../../core/device_layout.dart';
 import '../../models/client_version.dart';
 import '../../models/home_snapshot.dart';
 import '../../models/task_list_group.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/kid_style.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import '../beans/bean_ledger_page.dart';
 import '../checkin/checkin_detail_page.dart';
@@ -111,7 +111,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   String _friendlyError(Object e) {
     if (e is ApiException) {
       if (e.code == 40207) {
-        return '该档案已锁定，请家长开通会员或在小程序切换可用孩子';
+        return '这个档案暂时不能用，请爸爸妈妈在小程序里换一个孩子';
       }
       return e.message;
     }
@@ -128,7 +128,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _handleSessionInvalid() async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('登录已失效，请重新绑定设备')),
+      const SnackBar(content: Text('登录已失效，请重新输入暗号')),
     );
     await widget.onLogout();
   }
@@ -185,10 +185,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
     if (!mounted || result == null) return;
     final message = result.revised
-        ? '修订成功'
+        ? '重新交出去啦'
         : (result.beans > 0
-            ? '提交成功，预热能量豆 +${result.beans}'
-            : '提交成功');
+            ? '交出去啦，金豆 +${result.beans}'
+            : '交出去啦，等家长看一看');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -200,11 +200,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (box.quotaBlocked) {
         final tier = _snapshot?.todayBox.membershipTier ?? 'free';
         final limit = _snapshot?.todayBox.dailyCheckinTaskLimit ?? 3;
-        final tip = tier == 'free'
-            ? '免费版每孩每天最多打卡 $limit 个任务，请让家长开通 Plus/Pro'
-            : (tier == 'plus'
-                ? 'Plus 每孩每天最多打卡 $limit 个任务，可升级 Pro 解锁更多'
-                : '今日打卡任务已达上限（$limit 个）');
+        final tip = kidQuotaBlockedTip(tier: tier, limit: limit);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tip)));
         return;
       }
@@ -218,7 +214,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final checkinId = box.checkinId;
     if (checkinId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('找不到打卡记录')),
+        const SnackBar(content: Text('找不到这次拍照记录')),
       );
       return;
     }
@@ -283,9 +279,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('重新绑定设备？'),
+        title: const Text('要换一台设备吗？'),
         content: Text(
-          '退出后将清除本地登录信息与缓存。再次使用可输入家长小程序中的设备绑定码（未过期即可，无需重新生成）。',
+          '退出后要重新输入家长给的暗号。请让爸爸妈妈帮忙。',
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
@@ -299,7 +295,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               await widget.onLogout();
             },
             child: const Text(
-              '确认退出',
+              '换设备',
               style: TextStyle(color: AppColors.danger),
             ),
           ),
@@ -385,9 +381,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                       total: total,
                                       streak: snapshot.todayBox.streak,
                                       beans: snapshot.todayBox.energyBeans,
-                                      membershipLabel:
-                                          snapshot.entitlements.label,
-                                      isPlus: snapshot.entitlements.isPlus,
                                       tablet: tablet,
                                       allDone: allDone,
                                       onBeansTap: () => _openBeanLedger(
@@ -420,12 +413,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                                 ),
                                                 child: TreasureBox(
                                                   title: entry.value.title,
-                                                  subtitle: entry
-                                                      .value.displaySubtitle,
-                                                  submitted:
-                                                      entry.value.submitted,
-                                                  canRevise:
-                                                      entry.value.canRevise,
+                                                  taskType: entry.value.taskType,
                                                   category: section.category,
                                                   onTap: () =>
                                                       _onBoxTap(entry.value),

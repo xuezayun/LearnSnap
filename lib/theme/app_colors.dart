@@ -18,4 +18,21 @@ abstract final class AppColors {
   static const danger = Color(0xFFE05A4F);
   static const warning = Color(0xFFE8A261);
   static const success = Color(0xFF3D9B6E);
+
+  /// Gold bean / reward.
+  static const beanGold = Color(0xFFFFC53D);
+  static const beanGoldDeep = Color(0xFFE09400);
+  static const beanGoldSoft = Color(0xFFFFF4D0);
+
+  /// Streak fire.
+  static const streakFire = Color(0xFFFF6B35);
+  static const streakFireSoft = Color(0xFFFFE8DC);
+
+  /// Subject accents for kids' quest cards.
+  static const subjectRead = Color(0xFFFF8A4C);
+  static const subjectWrite = Color(0xFF4C9FFF);
+  static const subjectMath = Color(0xFF8B6CFF);
+  static const subjectSport = Color(0xFF3DCC6A);
+  static const subjectCode = Color(0xFFFF6B8A);
+  static const subjectLife = Color(0xFFF0A060);
 }

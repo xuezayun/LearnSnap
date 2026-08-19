@@ -13,33 +13,30 @@ class EmptyTasksHint extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.brand.withValues(alpha: 0.1)),
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.18), width: 2),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 42,
-            color: AppColors.brand.withValues(alpha: 0.7),
-          ),
+          const Text('🐣', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
           Text(
-            '今天还没有任务',
+            '今天还没有冒险',
             style: GoogleFonts.nunito(
               fontWeight: FontWeight.w800,
-              fontSize: 17,
+              fontSize: 18,
               color: AppColors.ink,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            '请家长在微信小程序「${AppConfig.miniprogramName}」为你分配习惯任务',
+            '请爸爸妈妈在微信小程序「${AppConfig.miniprogramName}」给你布置一个小任务吧',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               color: AppColors.inkMuted,
               fontWeight: FontWeight.w600,
+              height: 1.45,
             ),
           ),
         ],

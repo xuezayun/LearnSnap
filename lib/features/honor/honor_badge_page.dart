@@ -60,7 +60,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
     if (badge == null || _redeeming) return;
     if (badge.canRedeemCount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('今日兑换已达上限，明天再来吧')),
+        const SnackBar(content: Text('今天换够啦，明天再来点亮星星')),
       );
       return;
     }
@@ -68,7 +68,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '乐豆不足，还差 ${badge.starCostBeans - badge.balance} 豆，去打卡赚乐豆吧',
+            '金豆不够哦，还差 ${badge.starCostBeans - badge.balance} 豆，去拍照就能赚到',
           ),
         ),
       );
@@ -83,7 +83,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
         _redeeming = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('兑换成功！荣誉之星 +1')),
+        const SnackBar(content: Text('又亮一颗星啦！')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -101,7 +101,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
     final badge = _badge;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('荣誉徽章')),
+      appBar: AppBar(title: const Text('我的奖杯')),
       body: AppScaffoldBackground(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -212,7 +212,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                '兑换荣誉之星',
+                                '点亮荣誉之星',
                                 style: GoogleFonts.nunito(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -221,9 +221,9 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                '当前乐豆 ${badge?.balance ?? 0}　·　'
-                                '每颗星 ${badge?.starCostBeans ?? 50} 乐豆\n'
-                                '今日已兑 ${badge?.redeemedToday ?? 0}/'
+                                '当前金豆 ${badge?.balance ?? 0}　·　'
+                                '每颗星 ${badge?.starCostBeans ?? 50} 金豆\n'
+                                '今天已点亮 ${badge?.redeemedToday ?? 0}/'
                                 '${badge?.dailyRedeemLimit ?? 20}',
                                 style: GoogleFonts.nunito(
                                   fontSize: 13,
@@ -245,7 +245,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                                         ),
                                       )
                                     : Text(
-                                        '花 ${badge?.starCostBeans ?? 50} 乐豆换一颗星',
+                                        '花 ${badge?.starCostBeans ?? 50} 金豆换一颗星',
                                         style: GoogleFonts.nunito(
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -256,7 +256,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          '坚持打卡赚乐豆，攒星星点亮月亮和太阳！',
+                          '坚持拍照赚金豆，攒星星点亮月亮和太阳！',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.nunito(
                             fontSize: 13,

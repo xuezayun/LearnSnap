@@ -131,7 +131,7 @@ class _ReviewToolsPageState extends State<ReviewToolsPage>
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已审批，乐豆 +${result.bonusBeans}')),
+        SnackBar(content: Text('已审批，金豆 +${result.bonusBeans}')),
       );
       await _load();
     } catch (e) {

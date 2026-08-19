@@ -89,7 +89,7 @@ abstract final class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           textStyle: GoogleFonts.nunito(
             fontWeight: FontWeight.w800,
             fontSize: 16,
@@ -104,7 +104,7 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.ink,
+        backgroundColor: const Color(0xFF3D2A1A),
         contentTextStyle: GoogleFonts.nunito(color: Colors.white),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),

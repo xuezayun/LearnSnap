@@ -13,6 +13,7 @@ class MetaPill extends StatelessWidget {
     this.backgroundColor,
     this.foregroundColor,
     this.iconColor,
+    this.leading,
   });
 
   final IconData icon;
@@ -22,6 +23,7 @@ class MetaPill extends StatelessWidget {
   final Color? backgroundColor;
   final Color? foregroundColor;
   final Color? iconColor;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +40,6 @@ class MetaPill extends StatelessWidget {
       bg = AppColors.brand;
       fg = Colors.white;
       iconFg = Colors.white;
-    } else if (tappable) {
-      bg = AppColors.brandSoft;
-      fg = AppColors.brandDeep;
-      iconFg = AppColors.brandDeep;
     } else {
       bg = AppColors.brandSoft;
       fg = AppColors.brandDeep;
@@ -53,14 +51,17 @@ class MetaPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: iconFg),
+          leading ?? Icon(icon, size: 16, color: iconFg),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.nunito(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: fg,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: fg,
+              ),
             ),
           ),
           if (tappable) ...[
@@ -75,7 +76,7 @@ class MetaPill extends StatelessWidget {
       return Container(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: content,
       );
@@ -83,10 +84,10 @@ class MetaPill extends StatelessWidget {
 
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: content,
       ),
     );

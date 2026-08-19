@@ -153,7 +153,7 @@ class _VideoRecordPageState extends State<VideoRecordPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const Text('录制学习视频'),
+        title: const Text('拍一段小视频'),
       ),
       body: _buildBody(),
     );

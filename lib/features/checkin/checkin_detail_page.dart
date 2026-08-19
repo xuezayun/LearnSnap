@@ -8,6 +8,7 @@ import '../../models/checkin_media.dart';
 import '../../models/child_checkin_detail.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/kid_style.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import 'video_preview_page.dart';
 
@@ -118,7 +119,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
     final bodySize = tablet ? 16.0 : 14.0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('打卡详情')),
+      appBar: AppBar(title: const Text('我拍到的')),
       body: AppScaffoldBackground(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -143,7 +144,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '任务名称',
+                                  '这一关',
                                   style: GoogleFonts.nunito(
                                     fontSize: tablet ? 14 : 13,
                                     fontWeight: FontWeight.w700,
@@ -161,16 +162,19 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                 ),
                                 SizedBox(height: tablet ? 14 : 10),
                                 _StatusChip(
-                                  label: detail!.statusLabel.isNotEmpty
-                                      ? detail.statusLabel
-                                      : '已审核',
+                                  label: kidStatusLabel(
+                                    status: detail!.status,
+                                    fallback: detail.statusLabel.isNotEmpty
+                                        ? detail.statusLabel
+                                        : '过关啦',
+                                  ),
                                   tone: _toneForStatus(detail.status),
                                 ),
                                 if (detail.submittedAt != null &&
                                     detail.submittedAt!.isNotEmpty) ...[
                                   SizedBox(height: tablet ? 12 : 10),
                                   Text(
-                                    '提交于 ${_formatSubmittedAt(detail.submittedAt)}',
+                                    '拍于 ${_formatSubmittedAt(detail.submittedAt)}',
                                     style: GoogleFonts.nunito(
                                       color: AppColors.inkMuted,
                                       fontWeight: FontWeight.w600,
@@ -187,7 +191,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '家长评价',
+                                  '爸爸妈妈说',
                                   style: GoogleFonts.nunito(
                                     fontSize: sectionTitleSize,
                                     fontWeight: FontWeight.w800,
@@ -197,7 +201,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                 const SizedBox(height: 10),
                                 if (review == null) ...[
                                   Text(
-                                    '暂无家长评价',
+                                    '家长还在看，再等一等',
                                     style: GoogleFonts.nunito(
                                       fontSize: bodySize,
                                       fontWeight: FontWeight.w600,
@@ -206,7 +210,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                   ),
                                 ] else ...[
                                   Text(
-                                    '评价：${review.displayRatingLabel}',
+                                    '他们说：${review.displayRatingLabel}',
                                     style: GoogleFonts.nunito(
                                       fontSize: tablet ? 18 : 16,
                                       fontWeight: FontWeight.w800,
@@ -215,7 +219,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                   ),
                                   SizedBox(height: tablet ? 14 : 10),
                                   Text(
-                                    '家长鼓励的话',
+                                    '鼓励的话',
                                     style: GoogleFonts.nunito(
                                       fontSize: tablet ? 14 : 13,
                                       fontWeight: FontWeight.w700,
@@ -233,7 +237,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                     child: Text(
                                       review.comment.isNotEmpty
                                           ? review.comment
-                                          : '家长这次没有写鼓励的话',
+                                          : '这次没写字，但已经看到你的努力啦',
                                       style: GoogleFonts.nunito(
                                         fontSize: bodySize,
                                         fontWeight: FontWeight.w700,
@@ -247,7 +251,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                   if (review.bonusBeans > 0) ...[
                                     const SizedBox(height: 10),
                                     Text(
-                                      '奖励能量豆 +${review.bonusBeans}',
+                                      '奖励金豆 +${review.bonusBeans}',
                                       style: GoogleFonts.nunito(
                                         fontSize: bodySize,
                                         fontWeight: FontWeight.w700,
@@ -289,7 +293,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                           ],
                           SizedBox(height: tablet ? 22 : 18),
                           Text(
-                            '打卡内容',
+                            '我拍的照片',
                             style: GoogleFonts.nunito(
                               fontSize: sectionTitleSize,
                               fontWeight: FontWeight.w800,
@@ -300,7 +304,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                           if (detail.media.isEmpty)
                             _SectionCard(
                               child: Text(
-                                '没有可展示的照片或视频',
+                                '还没有照片或视频',
                                 style: GoogleFonts.nunito(
                                   color: AppColors.inkMuted,
                                   fontWeight: FontWeight.w600,

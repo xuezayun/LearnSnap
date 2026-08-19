@@ -5,6 +5,7 @@ import '../../core/device_layout.dart';
 import '../../models/checkin_report.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/kid_style.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import '../../widgets/child_name_badge.dart';
 import '../beans/bean_ledger_page.dart';
@@ -77,7 +78,7 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
     final report = _report;
     if (preset == '90d' && report != null && !report.isPlus) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('查看 90 天数据需家庭开通会员')),
+        const SnackBar(content: Text('看 90 天记录请爸爸妈妈开通会员')),
       );
       return;
     }
@@ -104,7 +105,7 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
     final padding = pagePadding(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('打卡报告')),
+      appBar: AppBar(title: const Text('成长相册')),
       body: AppScaffoldBackground(
         child: RefreshIndicator(
         onRefresh: _load,
@@ -148,7 +149,7 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              '的打卡记录',
+                              '的成长相册',
                               style: GoogleFonts.nunito(
                                 fontSize: tablet ? 24 : 20,
                                 fontWeight: FontWeight.w800,
@@ -176,10 +177,14 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                             label: Text('连续 ${_report!.streak} 天'),
                           ),
                           MetaPill(
-                            icon: Icons.bolt_rounded,
-                            label: '${_report!.energyBeans} 乐豆',
+                            icon: Icons.savings_rounded,
+                            label: '${_report!.energyBeans} 金豆',
                             onTap: _openBeanLedger,
                             emphasize: true,
+                            backgroundColor: AppColors.beanGold,
+                            foregroundColor: const Color(0xFF5A3A00),
+                            iconColor: const Color(0xFF5A3A00),
+                            leading: const BeanGlyph(size: 18),
                           ),
                         ],
                       ),
@@ -193,9 +198,9 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                       _StatsGrid(stats: _report!.stats, tablet: tablet),
                       const SizedBox(height: 16),
                       _SectionCard(
-                        title: '每日打卡',
+                        title: '每天拍了几次',
                         child: _report!.stats.totalCheckins == 0
-                            ? const Text('该时段暂无打卡记录', style: TextStyle(color: Colors.black54))
+                            ? const Text('这段时间还没有拍照记录', style: TextStyle(color: Colors.black54))
                             : _DailyBars(daily: _report!.stats.dailyCheckins),
                       ),
                       const SizedBox(height: 12),
@@ -211,7 +216,7 @@ class _CheckinReportPageState extends State<CheckinReportPage> {
                       ),
                       const SizedBox(height: 12),
                       _SectionCard(
-                        title: '家长评价',
+                        title: '爸爸妈妈说',
                         child: _RatingBreakdown(breakdown: _report!.stats.ratingBreakdown),
                       ),
                     ],
@@ -292,8 +297,8 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('打卡次数', '${stats.totalCheckins}'),
-      ('获得乐豆', '${stats.beansEarned}'),
+      ('拍了几次', '${stats.totalCheckins}'),
+      ('获得金豆', '${stats.beansEarned}'),
       ('活跃天数', '${stats.activeDays}'),
       ('完成率', stats.completionRateText),
     ];
@@ -438,7 +443,7 @@ class _RatingBreakdown extends StatelessWidget {
         .where((e) => e.value > 0)
         .toList();
     if (entries.isEmpty) {
-      return const Text('暂无家长评价', style: TextStyle(color: Colors.black54));
+      return const Text('还没有爸爸妈妈的评价', style: TextStyle(color: Colors.black54));
     }
     return Wrap(
       spacing: 8,

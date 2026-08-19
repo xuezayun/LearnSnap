@@ -36,7 +36,7 @@ class HomeGreeting extends StatelessWidget {
         Text(
           '${homeGreetingPrefix()}，$name！',
           style: GoogleFonts.nunito(
-            fontSize: tablet ? 26 : 22,
+            fontSize: tablet ? 28 : 24,
             fontWeight: FontWeight.w800,
             color: AppColors.ink,
             height: 1.2,
@@ -52,10 +52,10 @@ class HomeGreeting extends StatelessWidget {
         ],
         const SizedBox(height: 6),
         Text(
-          '好习惯，从每一次坚持开始',
+          '今天也来拍一个小胜利吧',
           style: GoogleFonts.nunito(
-            fontSize: tablet ? 15 : 14,
-            fontWeight: FontWeight.w600,
+            fontSize: tablet ? 16 : 15,
+            fontWeight: FontWeight.w700,
             color: AppColors.inkMuted,
           ),
         ),

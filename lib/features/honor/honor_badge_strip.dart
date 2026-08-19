@@ -22,7 +22,7 @@ class HonorBadgeStrip extends StatelessWidget {
     final icons = badge.display;
     final child = icons.isEmpty
         ? Text(
-            compact ? '暂无徽章' : '还没有荣誉徽章，去兑换吧',
+            compact ? '还没有奖杯' : '还没有奖杯，去点亮一颗星吧',
             style: GoogleFonts.nunito(
               fontSize: compact ? 12 : 13,
               fontWeight: FontWeight.w600,
