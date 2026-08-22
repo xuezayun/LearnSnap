@@ -14,6 +14,7 @@ class ApiException implements Exception {
   bool get isSessionInvalid {
     if (statusCode == 401) return true;
     if (code == 40402) return true; // 设备未绑定
+    if (code == 40310) return true; // 暗号已在其他设备登录
     final m = message;
     return m.contains('未找到该用户') ||
         m.contains('User not found') ||

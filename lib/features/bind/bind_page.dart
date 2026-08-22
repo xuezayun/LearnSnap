@@ -13,9 +13,10 @@ import '../../widgets/app_scaffold_bg.dart';
 const int _bindCodeLength = 8;
 
 class BindPage extends StatefulWidget {
-  const BindPage({super.key, required this.onBound});
+  const BindPage({super.key, required this.onBound, this.notice});
 
   final VoidCallback onBound;
+  final String? notice;
 
   @override
   State<BindPage> createState() => _BindPageState();
@@ -41,7 +42,14 @@ class _BindPageState extends State<BindPage> {
       if (mounted) setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (!mounted) return;
+      _focusNode.requestFocus();
+      final notice = widget.notice?.trim() ?? '';
+      if (notice.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(notice), duration: const Duration(seconds: 4)),
+        );
+      }
     });
   }
 

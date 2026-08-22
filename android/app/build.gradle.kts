@@ -42,9 +42,10 @@ android {
                 }
                 keyAlias = keystoreProperties["keyAlias"] as? String
                 keyPassword = keystoreProperties["keyPassword"] as? String
+                // Paths in key.properties are relative to android/ (rootProject), not android/app/
                 val storePath = keystoreProperties["storeFile"] as? String
                 if (storePath != null) {
-                    storeFile = file(storePath)
+                    storeFile = rootProject.file(storePath)
                 }
                 storePassword = keystoreProperties["storePassword"] as? String
             }

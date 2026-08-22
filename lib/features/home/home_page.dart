@@ -29,7 +29,7 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key, this.api, required this.onLogout});
 
   final LearnSnapApi? api;
-  final Future<void> Function() onLogout;
+  final Future<void> Function({String? notice}) onLogout;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -125,12 +125,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return '加载失败，请检查网络后重试';
   }
 
-  Future<void> _handleSessionInvalid() async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('登录已失效，请重新输入暗号')),
-    );
-    await widget.onLogout();
+  Future<void> _handleSessionInvalid([ApiException? err]) async {
+    final msg = (err != null && err.code == 40310 && err.message.trim().isNotEmpty)
+        ? err.message
+        : '登录已失效，请重新输入暗号';
+    await widget.onLogout(notice: msg);
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -156,7 +155,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (!mounted) return;
       if (e is ApiException && e.isSessionInvalid) {
         setState(() => _loading = false);
-        await _handleSessionInvalid();
+        await _handleSessionInvalid(e);
         return;
       }
       setState(() {

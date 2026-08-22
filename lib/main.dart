@@ -50,6 +50,7 @@ class _AppRootState extends State<AppRoot> {
   final _api = LearnSnapApi();
   bool _loading = true;
   bool _bound = false;
+  String? _kickNotice;
 
   @override
   void initState() {
@@ -66,6 +67,9 @@ class _AppRootState extends State<AppRoot> {
         if (e.isSessionInvalid) {
           await _api.clearSession();
           bound = false;
+          if (e.code == 40310) {
+            _kickNotice = e.message;
+          }
         }
         // 其它心跳失败（网络等）不阻断启动，进首页后再试
       } catch (_) {
@@ -89,13 +93,22 @@ class _AppRootState extends State<AppRoot> {
       );
     }
     if (!_bound) {
-      return BindPage(onBound: () => setState(() => _bound = true));
+      return BindPage(
+        notice: _kickNotice,
+        onBound: () => setState(() {
+          _bound = true;
+          _kickNotice = null;
+        }),
+      );
     }
     return HomePage(
       api: _api,
-      onLogout: () async {
+      onLogout: ({String? notice}) async {
         await _api.clearSession();
-        setState(() => _bound = false);
+        setState(() {
+          _bound = false;
+          _kickNotice = notice;
+        });
       },
     );
   }
