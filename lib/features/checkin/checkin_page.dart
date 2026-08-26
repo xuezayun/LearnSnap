@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/api_client.dart';
+import '../../core/checkin_timer.dart';
+import '../../core/checkin_timer_store.dart';
 import '../../core/device_layout.dart';
 import '../../core/media_url.dart';
 import '../../core/video_compressor.dart';
@@ -28,6 +31,8 @@ class CheckinPage extends StatefulWidget {
     this.checkinId,
     this.nickname,
     this.childId,
+    this.durationMin = 15,
+    this.timerStore,
     this.initialMedia = const [],
   });
 
@@ -38,29 +43,132 @@ class CheckinPage extends StatefulWidget {
   final int? checkinId;
   final String? nickname;
   final int? childId;
+  final int durationMin;
+  final CheckinTimerStore? timerStore;
   final List<CheckinMediaItem> initialMedia;
 
   @override
   State<CheckinPage> createState() => _CheckinPageState();
 }
 
-class _CheckinPageState extends State<CheckinPage> {
+class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
   final _picker = ImagePicker();
   late final LearnSnapApi _api = widget.api ?? LearnSnapApi();
+  late final CheckinTimerStore _timerStore =
+      widget.timerStore ?? CheckinTimerStore();
   final List<CheckinMediaItem> _media = [];
   bool _submitting = false;
   bool _loadingExisting = false;
   String? _error;
   String? _idempotencyKey;
+  Timer? _tick;
+  DateTime? _endAt;
+  DateTime _now = DateTime.now();
+  bool _startingTimer = false;
+  late bool _timerLocked = widget.revise || widget.checkinId != null;
+
+  int get _timerChildId => widget.childId ?? 0;
+
+  Duration get _taskDuration {
+    final minutes = widget.durationMin > 0 ? widget.durationMin : 15;
+    return Duration(minutes: minutes);
+  }
+
+  CheckinTimerPhase get _timerPhase =>
+      phaseFor(endAt: _endAt, now: _now);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initialMedia.isNotEmpty) {
       _media.addAll(widget.initialMedia);
     }
     if (widget.revise && widget.checkinId != null && widget.initialMedia.isEmpty) {
       _loadExistingMedia(widget.checkinId!);
+    }
+    _restoreTimer();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      setState(() => _now = DateTime.now());
+      _syncTicker();
+    }
+  }
+
+  Future<void> _restoreTimer() async {
+    var locked = _timerLocked;
+    DateTime? endAt;
+    try {
+      locked = locked ||
+          await _timerStore.isSubmitted(
+            assignmentId: widget.assignmentId,
+            childId: _timerChildId,
+          );
+      if (!locked) {
+        endAt = await _timerStore.readEndAt(
+          assignmentId: widget.assignmentId,
+          childId: _timerChildId,
+        );
+      }
+    } catch (_) {
+      endAt = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _timerLocked = locked;
+      _endAt = locked ? null : endAt;
+      _now = DateTime.now();
+    });
+    _syncTicker();
+  }
+
+  void _syncTicker() {
+    _tick?.cancel();
+    if (_timerLocked) return;
+    if (phaseFor(endAt: _endAt, now: DateTime.now()) != CheckinTimerPhase.running) {
+      return;
+    }
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      if (_timerPhase != CheckinTimerPhase.running) {
+        _tick?.cancel();
+      }
+    });
+  }
+
+  Future<void> _onStartTimer() async {
+    if (_timerLocked || _startingTimer || _timerPhase == CheckinTimerPhase.running) {
+      return;
+    }
+    setState(() => _startingTimer = true);
+    try {
+      final endAt = await _timerStore.start(
+        assignmentId: widget.assignmentId,
+        childId: _timerChildId,
+        duration: _taskDuration,
+      );
+      if (!mounted) return;
+      setState(() {
+        _endAt = endAt;
+        _now = DateTime.now();
+      });
+      _syncTicker();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = '计时没能开始，再试一次');
+    } finally {
+      if (mounted) setState(() => _startingTimer = false);
     }
   }
 
@@ -248,6 +356,12 @@ class _CheckinPageState extends State<CheckinPage> {
         media: _media,
         idempotencyKey: _idempotencyKey,
       );
+      try {
+        await _timerStore.markSubmitted(
+          assignmentId: widget.assignmentId,
+          childId: _timerChildId,
+        );
+      } catch (_) {}
       if (!mounted) return;
       Navigator.pop(context, result);
     } on ApiException catch (e) {
@@ -326,6 +440,20 @@ class _CheckinPageState extends State<CheckinPage> {
                               color: AppColors.inkMuted,
                             ),
                           ),
+                          if (!_timerLocked) ...[
+                            const SizedBox(height: 12),
+                            _HintTimerBar(
+                              phase: _timerPhase,
+                              remaining: _timerPhase == CheckinTimerPhase.running
+                                  ? remainingUntil(_endAt!, _now)
+                                  : Duration.zero,
+                              durationMin: widget.durationMin > 0
+                                  ? widget.durationMin
+                                  : 15,
+                              starting: _startingTimer,
+                              onStart: _onStartTimer,
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           _QuotaBar(
                             imageCount: _imageCount,
@@ -681,6 +809,106 @@ class _AddButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HintTimerBar extends StatelessWidget {
+  const _HintTimerBar({
+    required this.phase,
+    required this.remaining,
+    required this.durationMin,
+    required this.starting,
+    required this.onStart,
+  });
+
+  final CheckinTimerPhase phase;
+  final Duration remaining;
+  final int durationMin;
+  final bool starting;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final running = phase == CheckinTimerPhase.running;
+    final finished = phase == CheckinTimerPhase.finished;
+    final canStart = !starting && !running;
+    final hintStyle = GoogleFonts.nunito(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: AppColors.inkMuted,
+      height: 1.25,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+      decoration: BoxDecoration(
+        color: AppColors.brandSoft,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          if (running) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                formatCheckinCountdown(remaining),
+                style: GoogleFonts.nunito(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.brandDeep,
+                  height: 1,
+                ),
+              ),
+            ),
+            Expanded(child: Text('慢慢拍就好', style: hintStyle)),
+          ] else if (finished) ...[
+            Expanded(child: Text('时间到啦，去拍照吧', style: hintStyle)),
+            TextButton(
+              onPressed: canStart ? onStart : null,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandDeep,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                starting ? '正在开始…' : '再计一次',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ] else ...[
+            FilledButton(
+              onPressed: canStart ? onStart : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brand,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.brand.withValues(alpha: 0.38),
+                disabledForegroundColor: Colors.white70,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                minimumSize: const Size(0, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: const StadiumBorder(),
+              ),
+              child: Text(
+                starting ? '正在开始…' : '开始计时',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('大约 $durationMin 分钟', style: hintStyle),
+            ),
+          ],
+        ],
       ),
     );
   }

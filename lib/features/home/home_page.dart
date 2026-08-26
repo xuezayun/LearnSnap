@@ -178,6 +178,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           checkinId: box.checkinId,
           nickname: _snapshot?.todayBox.nickname,
           childId: _childId,
+          durationMin: box.durationMin,
           initialMedia: revise ? box.media : const [],
         ),
       ),

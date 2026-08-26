@@ -28,6 +28,7 @@ class TodayBoxItem {
     this.quotaBlocked = false,
     this.media = const [],
     this.parentReview,
+    this.durationMin = 15,
   });
 
   final int assignmentId;
@@ -42,6 +43,7 @@ class TodayBoxItem {
   final bool quotaBlocked;
   final List<CheckinMediaItem> media;
   final ParentReviewSummary? parentReview;
+  final int durationMin;
 
   bool get isFinalized => submitted && !canRevise;
 
@@ -81,7 +83,21 @@ class TodayBoxItem {
       quotaBlocked: json['quota_blocked'] as bool? ?? false,
       media: media,
       parentReview: parentReview,
+      durationMin: _readDurationMin(json['duration_min']),
     );
+  }
+
+  static int _readDurationMin(dynamic value) {
+    if (value is int) return value > 0 ? value : 15;
+    if (value is num) {
+      final n = value.toInt();
+      return n > 0 ? n : 15;
+    }
+    if (value is String) {
+      final n = int.tryParse(value);
+      if (n != null && n > 0) return n;
+    }
+    return 15;
   }
 }
 
