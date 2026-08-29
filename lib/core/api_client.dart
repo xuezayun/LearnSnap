@@ -15,6 +15,8 @@ class ApiException implements Exception {
     if (statusCode == 401) return true;
     if (code == 40402) return true; // 设备未绑定
     if (code == 40310) return true; // 暗号已在其他设备登录
+    if (code == 40301 || code == 40101) return true; // 角色不符 / 未认证
+    if (statusCode == 403 && code == 403) return true; // DRF 默认权限失败
     final m = message;
     return m.contains('未找到该用户') ||
         m.contains('User not found') ||
@@ -22,7 +24,8 @@ class ApiException implements Exception {
         m.contains('Token is invalid') ||
         m.contains('Token is expired') ||
         m.contains('认证失败') ||
-        m.contains('身份认证信息未提供');
+        m.contains('身份认证信息未提供') ||
+        m.contains('不是孩子端');
   }
 
   @override

@@ -3,25 +3,58 @@ import 'package:flutter/material.dart';
 import 'core/api_client.dart';
 import 'core/app_config.dart';
 import 'core/device_layout.dart';
+import 'core/privacy_consent_store.dart';
 import 'features/bind/bind_page.dart';
 import 'features/home/home_page.dart';
+import 'features/privacy/privacy_consent_page.dart';
 import 'services/learn_snap_api.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_scaffold_bg.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const LearnSnapApp());
 }
 
-class LearnSnapApp extends StatelessWidget {
+class LearnSnapApp extends StatefulWidget {
   const LearnSnapApp({super.key});
+
+  @override
+  State<LearnSnapApp> createState() => _LearnSnapAppState();
+}
+
+class _LearnSnapAppState extends State<LearnSnapApp> {
+  final _consent = PrivacyConsentStore();
+  bool _loading = true;
+  bool _agreed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConsent();
+  }
+
+  Future<void> _loadConsent() async {
+    final agreed = await _consent.hasAgreed();
+    if (!mounted) return;
+    setState(() {
+      _agreed = agreed;
+      _loading = false;
+    });
+  }
+
+  Future<void> _onAgree() async {
+    await _consent.agree();
+    if (!mounted) return;
+    setState(() => _agreed = true);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: _agreed ? AppTheme.light() : AppTheme.preConsent(),
       builder: (context, child) {
         var mq = MediaQuery.of(context);
         if (isTablet(context)) {
@@ -34,7 +67,24 @@ class LearnSnapApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const AppRoot(),
+      home: _loading
+          ? const _LaunchSplash()
+          : _agreed
+              ? const AppRoot()
+              : PrivacyConsentPage(onAgree: _onAgree),
+    );
+  }
+}
+
+class _LaunchSplash extends StatelessWidget {
+  const _LaunchSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: AppScaffoldBackground(
+        child: Center(child: CircularProgressIndicator()),
+      ),
     );
   }
 }

@@ -308,26 +308,34 @@ class _StatsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: tablet ? 2.2 : 1.8,
+      childAspectRatio: tablet ? 2.0 : 1.55,
       children: items
           .map(
             (item) => Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      item.$2,
-                      style: TextStyle(
-                        fontSize: tablet ? 28 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: tablet ? 16 : 12,
+                ),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          item.$2,
+                          style: TextStyle(
+                            fontSize: tablet ? 28 : 24,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(item.$1, style: const TextStyle(color: Colors.black54)),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(item.$1, style: const TextStyle(color: Colors.black54)),
-                  ],
+                  ),
                 ),
               ),
             ),

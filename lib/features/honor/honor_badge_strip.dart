@@ -11,11 +11,13 @@ class HonorBadgeStrip extends StatelessWidget {
     required this.badge,
     this.onTap,
     this.compact = false,
+    this.glyphSize,
   });
 
   final HonorBadge badge;
   final VoidCallback? onTap;
   final bool compact;
+  final double? glyphSize;
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +32,16 @@ class HonorBadgeStrip extends StatelessWidget {
             ),
           )
         : Wrap(
-            spacing: 4,
-            runSpacing: 4,
+            spacing: (glyphSize ?? 26) >= 34 ? 10 : 4,
+            runSpacing: (glyphSize ?? 26) >= 34 ? 10 : 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final icon in icons) _HonorIconChip(icon: icon, compact: compact),
+              for (final icon in icons)
+                _HonorIconChip(
+                  icon: icon,
+                  compact: compact,
+                  glyphSize: glyphSize,
+                ),
             ],
           );
 
@@ -51,10 +58,15 @@ class HonorBadgeStrip extends StatelessWidget {
 }
 
 class _HonorIconChip extends StatelessWidget {
-  const _HonorIconChip({required this.icon, required this.compact});
+  const _HonorIconChip({
+    required this.icon,
+    required this.compact,
+    this.glyphSize,
+  });
 
   final HonorBadgeIcon icon;
   final bool compact;
+  final double? glyphSize;
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +75,14 @@ class _HonorIconChip extends StatelessWidget {
       'moon' => const Color(0xFF7B8CDE),
       _ => const Color(0xFFF5C542),
     };
-    final size = compact ? 20.0 : 26.0;
+    final size = glyphSize ?? (compact ? 20.0 : 26.0);
+    final bump = size >= 34;
     if (icon.count > 1) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: EdgeInsets.symmetric(
+          horizontal: bump ? 10 : 6,
+          vertical: bump ? 6 : 3,
+        ),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(999),
@@ -75,11 +91,11 @@ class _HonorIconChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             HonorBadgeGlyph(type: icon.type, size: size),
-            const SizedBox(width: 2),
+            SizedBox(width: bump ? 4 : 2),
             Text(
               '×${icon.count}',
               style: GoogleFonts.nunito(
-                fontSize: compact ? 12 : 14,
+                fontSize: bump ? 16 : (compact ? 12 : 14),
                 fontWeight: FontWeight.w800,
                 color: AppColors.ink,
               ),

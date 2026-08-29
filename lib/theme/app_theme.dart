@@ -5,17 +5,39 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 abstract final class AppTheme {
+  static ColorScheme get _colorScheme => ColorScheme.fromSeed(
+        seedColor: AppColors.brand,
+        brightness: Brightness.light,
+        primary: AppColors.brand,
+        onPrimary: Colors.white,
+        secondary: AppColors.accentSun,
+        surface: AppColors.surface,
+        onSurface: AppColors.ink,
+      );
+
+  /// 同意隐私政策前使用系统字体，避免首帧拉取 Google Fonts。
+  static ThemeData preConsent() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: _colorScheme,
+      scaffoldBackgroundColor: AppColors.washMid,
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.brand,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.brand,
+      ),
+    );
+  }
+
   static ThemeData light() {
     final baseText = GoogleFonts.nunitoTextTheme();
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.brand,
-      brightness: Brightness.light,
-      primary: AppColors.brand,
-      onPrimary: Colors.white,
-      secondary: AppColors.accentSun,
-      surface: AppColors.surface,
-      onSurface: AppColors.ink,
-    );
+    final colorScheme = _colorScheme;
 
     return ThemeData(
       useMaterial3: true,

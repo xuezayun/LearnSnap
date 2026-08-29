@@ -7,11 +7,11 @@
 	<key>CFBundleDisplayName</key>
 	<string>拍习惯</string>
 	<key>NSCameraUsageDescription</key>
-	<string>用于拍摄作业完成打卡照片与录制学习视频</string>
+	<string>用于拍摄习惯打卡照片与录制打卡视频</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>用于录制学习打卡视频时采集声音</string>
+	<string>用于录制打卡视频时采集声音</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于选择作业照片或学习视频上传打卡</string>
+	<string>用于选择打卡照片或视频上传</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

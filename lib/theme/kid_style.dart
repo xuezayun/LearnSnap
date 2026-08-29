@@ -25,28 +25,28 @@ TaskTypeLook lookForTaskType(String type) {
         color: AppColors.subjectRead,
         wash: Color(0xFFFFF1E6),
         icon: Icons.auto_stories_rounded,
-        label: '阅读',
+        label: '课外阅读',
       );
     case 'english_read':
       return const TaskTypeLook(
         color: AppColors.subjectRead,
         wash: Color(0xFFFFF1E6),
         icon: Icons.headphones_rounded,
-        label: '英语',
+        label: '听读',
       );
     case 'recitation':
       return const TaskTypeLook(
         color: AppColors.subjectRead,
         wash: Color(0xFFFFF1E6),
         icon: Icons.record_voice_over_rounded,
-        label: '背诵',
+        label: '朗读',
       );
     case 'handwriting':
       return const TaskTypeLook(
         color: AppColors.subjectWrite,
         wash: Color(0xFFE8F3FF),
         icon: Icons.edit_rounded,
-        label: '写字',
+        label: '书写',
       );
     case 'diary':
       return const TaskTypeLook(
@@ -67,14 +67,14 @@ TaskTypeLook lookForTaskType(String type) {
         color: AppColors.subjectMath,
         wash: Color(0xFFF0ECFF),
         icon: Icons.calculate_rounded,
-        label: '口算',
+        label: '专注',
       );
     case 'mistake_book':
       return const TaskTypeLook(
         color: AppColors.subjectMath,
         wash: Color(0xFFF0ECFF),
         icon: Icons.fact_check_rounded,
-        label: '错题',
+        label: '复盘',
       );
     case 'exercise':
       return const TaskTypeLook(
@@ -88,7 +88,7 @@ TaskTypeLook lookForTaskType(String type) {
         color: AppColors.subjectCode,
         wash: Color(0xFFFFEEF2),
         icon: Icons.smart_toy_rounded,
-        label: '编程',
+        label: '动手',
       );
     case 'labor':
     case 'life':
@@ -103,15 +103,15 @@ TaskTypeLook lookForTaskType(String type) {
         color: AppColors.brandDeep,
         wash: AppColors.brandSoft,
         icon: Icons.visibility_rounded,
-        label: '预习',
+        label: '准备',
       );
     case 'study':
     default:
       return const TaskTypeLook(
         color: AppColors.brandDeep,
         wash: AppColors.brandSoft,
-        icon: Icons.school_rounded,
-        label: '学习',
+        icon: Icons.wb_sunny_rounded,
+        label: '日常',
       );
   }
 }

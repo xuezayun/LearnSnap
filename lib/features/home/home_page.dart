@@ -126,7 +126,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _handleSessionInvalid([ApiException? err]) async {
-    final msg = (err != null && err.code == 40310 && err.message.trim().isNotEmpty)
+    final msg = (err != null && err.message.trim().isNotEmpty)
         ? err.message
         : '登录已失效，请重新输入暗号';
     await widget.onLogout(notice: msg);

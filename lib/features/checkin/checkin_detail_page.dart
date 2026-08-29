@@ -237,7 +237,7 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
                                     child: Text(
                                       review.comment.isNotEmpty
                                           ? review.comment
-                                          : '这次没写字，但已经看到你的努力啦',
+                                          : '这次已经看到你的努力啦',
                                       style: GoogleFonts.nunito(
                                         fontSize: bodySize,
                                         fontWeight: FontWeight.w700,

@@ -193,7 +193,7 @@ class _VideoRecordPageState extends State<VideoRecordPage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '正在使用前置摄像头拍摄作业',
+                    '正在使用前置摄像头拍摄打卡',
                     style: TextStyle(color: Colors.white, fontSize: timerFontSize),
                     textAlign: TextAlign.center,
                   ),

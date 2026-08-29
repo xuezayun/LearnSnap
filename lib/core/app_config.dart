@@ -53,5 +53,9 @@ class AppConfig {
   static const slogan = '拍下好习惯';
 
   /// 品类短句
-  static const tagline = '小学生习惯打卡 · 拍照记录 · 家长审核';
+  static const tagline = '家庭习惯打卡 · 拍照记录 · 家长确认';
+
+  static const siteOrigin = 'https://zhiyainfo.com';
+  static const privacyPolicyUrl = 'https://zhiyainfo.com/privacy.html';
+  static const userAgreementUrl = 'https://zhiyainfo.com/terms.html';
 }

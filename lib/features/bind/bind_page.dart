@@ -6,9 +6,11 @@ import '../../core/api_client.dart';
 import '../../core/app_config.dart';
 import '../../core/device_info_collector.dart';
 import '../../core/device_layout.dart';
+import '../../core/privacy_consent_store.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_scaffold_bg.dart';
+import '../../widgets/legal_entry_links.dart';
 
 const int _bindCodeLength = 8;
 
@@ -65,6 +67,7 @@ class _BindPageState extends State<BindPage> {
   }
 
   Future<void> _pasteFromClipboard() async {
+    if (!await PrivacyConsentStore().hasAgreed()) return;
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final pasted = _normalizeCode(data?.text ?? '');
     if (pasted.isEmpty) {
@@ -342,7 +345,8 @@ class _BindPageState extends State<BindPage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const LegalEntryLinks(compact: true),
+                    const SizedBox(height: 4),
                     FilledButton(
                       onPressed: _canSubmit ? _bind : null,
                       style: FilledButton.styleFrom(

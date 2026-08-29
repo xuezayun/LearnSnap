@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/app_config.dart';
+import '../../../core/legal_links.dart';
 import '../../../models/client_version.dart';
 import '../../../theme/app_colors.dart';
 
@@ -87,10 +88,20 @@ class HomeTopBar extends StatelessWidget {
           offset: const Offset(0, 44),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           onSelected: (value) {
+            if (value == 'privacy') openPrivacyPolicy(context);
+            if (value == 'terms') openUserAgreement(context);
             if (value == 'review') onReviewToolsTap?.call();
             if (value == 'rebind') onLogout();
           },
           itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'privacy',
+              child: Text('隐私政策'),
+            ),
+            const PopupMenuItem(
+              value: 'terms',
+              child: Text('用户协议'),
+            ),
             if (showReviewTools)
               const PopupMenuItem(
                 value: 'review',

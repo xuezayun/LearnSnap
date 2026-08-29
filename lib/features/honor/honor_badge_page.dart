@@ -98,7 +98,8 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
   @override
   Widget build(BuildContext context) {
     final padding = pagePadding(context);
-    final badge = _badge;
+    final tablet = isTablet(context);
+    final badge = _badge ?? HonorBadge.empty();
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的奖杯')),
@@ -113,7 +114,7 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                     Center(child: CircularProgressIndicator()),
                   ],
                 )
-              : _error != null && badge == null
+              : _error != null && _badge == null
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: EdgeInsets.all(padding),
@@ -133,140 +134,286 @@ class _HonorBadgePageState extends State<HonorBadgePage> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: EdgeInsets.all(padding),
                       children: [
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: AppColors.brand.withValues(alpha: 0.3),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.brand.withValues(alpha: 0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '我的荣誉',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.brandDeep,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              HonorBadgeStrip(badge: badge ?? HonorBadge.empty()),
-                              const SizedBox(height: 12),
-                              HonorBadgeStatRow(
-                                suns: badge?.suns ?? 0,
-                                moons: badge?.moons ?? 0,
-                                stars: badge?.stars ?? 0,
-                                iconSize: 22,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '累计兑星 ${badge?.starCount ?? 0}',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkMuted,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              HonorBadgeRuleHint(
-                                starsPerMoon: badge?.starsPerMoon ?? 5,
-                                moonsPerSun: badge?.moonsPerSun ?? 5,
-                                iconSize: 14,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: AppColors.accentSun.withValues(alpha: 0.35),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                '点亮荣誉之星',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '当前金豆 ${badge?.balance ?? 0}　·　'
-                                '每颗星 ${badge?.starCostBeans ?? 50} 金豆\n'
-                                '今天已点亮 ${badge?.redeemedToday ?? 0}/'
-                                '${badge?.dailyRedeemLimit ?? 20}',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkMuted,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              FilledButton(
-                                onPressed: _redeeming ? null : _redeem,
-                                child: _redeeming
-                                    ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Text(
-                                        '花 ${badge?.starCostBeans ?? 50} 金豆换一颗星',
-                                        style: GoogleFonts.nunito(
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 4),
+                        _HonorHeroCard(badge: badge, tablet: tablet),
+                        SizedBox(height: tablet ? 20 : 16),
+                        _RedeemStarCard(
+                          badge: badge,
+                          tablet: tablet,
+                          redeeming: _redeeming,
+                          onRedeem: _redeem,
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          '坚持拍照赚金豆，攒星星点亮月亮和太阳！',
+                          '坚持拍照赚金豆，攒星星就能点亮月亮和太阳！',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.nunito(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontSize: tablet ? 15 : 13,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.inkFaint,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HonorHeroCard extends StatelessWidget {
+  const _HonorHeroCard({required this.badge, required this.tablet});
+
+  final HonorBadge badge;
+  final bool tablet;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTrophy = badge.display.isNotEmpty;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        tablet ? 22 : 16,
+        tablet ? 22 : 18,
+        tablet ? 22 : 16,
+        tablet ? 20 : 16,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brand.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            '我的奖杯',
+            style: GoogleFonts.nunito(
+              fontSize: tablet ? 24 : 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.brandDeep,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            badge.starCount > 0 ? '累计点亮 ${badge.starCount} 颗星' : '还没有奖杯，去点亮第一颗星吧',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: tablet ? 15 : 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.inkMuted,
+            ),
+          ),
+          SizedBox(height: tablet ? 18 : 14),
+          HonorBadgeMedalBoard(
+            suns: badge.suns,
+            moons: badge.moons,
+            stars: badge.stars,
+            tablet: tablet,
+          ),
+          SizedBox(height: tablet ? 18 : 16),
+          Text(
+            '怎么升级？',
+            style: GoogleFonts.nunito(
+              fontSize: tablet ? 16 : 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          HonorBadgeRuleHint(
+            starsPerMoon: badge.starsPerMoon,
+            moonsPerSun: badge.moonsPerSun,
+            iconSize: tablet ? 32 : 26,
+          ),
+          if (hasTrophy) ...[
+            SizedBox(height: tablet ? 18 : 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '奖杯墙',
+                style: GoogleFonts.nunito(
+                  fontSize: tablet ? 16 : 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            HonorBadgeStrip(
+              badge: badge,
+              glyphSize: tablet ? 48 : 40,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RedeemStarCard extends StatelessWidget {
+  const _RedeemStarCard({
+    required this.badge,
+    required this.tablet,
+    required this.redeeming,
+    required this.onRedeem,
+  });
+
+  final HonorBadge badge;
+  final bool tablet;
+  final bool redeeming;
+  final VoidCallback onRedeem;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(tablet ? 22 : 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8EC),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.accentSun.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const HonorBadgeGlyph(type: 'star', size: 40),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '点亮一颗星',
+                  style: GoogleFonts.nunito(
+                    fontSize: tablet ? 22 : 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStat(
+                  label: '我的金豆',
+                  value: '${badge.balance}',
+                  wash: AppColors.beanGoldSoft,
+                  ink: AppColors.beanGoldDeep,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MiniStat(
+                  label: '一颗星',
+                  value: '${badge.starCostBeans}',
+                  wash: const Color(0xFFFFF6D6),
+                  ink: const Color(0xFFB45309),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MiniStat(
+                  label: '今天已点亮',
+                  value: '${badge.redeemedToday}/${badge.dailyRedeemLimit}',
+                  wash: const Color(0xFFEEF1FF),
+                  ink: const Color(0xFF4C5BD4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: tablet ? 56 : 52,
+            child: FilledButton(
+              onPressed: redeeming ? null : onRedeem,
+              child: redeeming
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const HonorBadgeGlyph(type: 'star', size: 22),
+                        const SizedBox(width: 8),
+                        Text(
+                          '花 ${badge.starCostBeans} 金豆换一颗星',
+                          style: GoogleFonts.nunito(
+                            fontSize: tablet ? 17 : 15,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.wash,
+    required this.ink,
+  });
+
+  final String label;
+  final String value;
+  final Color wash;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: wash,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: GoogleFonts.nunito(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: ink,
+                height: 1.1,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.inkMuted,
+            ),
+          ),
+        ],
       ),
     );
   }
