@@ -9,16 +9,16 @@ workflows:
       cocoapods: default
       # 移除了 ios_signing 和 integrations，模拟器构建不需要签名和 App Store Connect
     scripts:
-      - name: Get Flutter packages
-        script: flutter pub get
-      - name: Install CocoaPods dependencies
-        script: find . -name "Podfile" -execdir pod install \;
       - name: Build .app for Simulator
         script: |
-          flutter build ios --simulator --release --no-codesign
-          # 进入模拟器构建输出目录，将 .app 压缩成 .zip（Appetize.io 要求）
-          cd build/ios/iphonesimulator
-          zip -r Runner.app.zip Runner.app
+          flutter build ios --simulator --debug --no-codesign
+          if [ -d "build/ios/iphonesimulator" ]; then
+            cd build/ios/iphonesimulator
+            zip -r Runner.app.zip Runner.app
+          else
+            echo "Build directory not found, build failed!"
+            exit 1
+          fi
     artifacts:
       # 产物为压缩后的 .zip 文件，可直接上传至 Appetize.io
       - build/ios/iphonesimulator/Runner.app.zip
