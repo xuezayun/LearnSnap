@@ -18,6 +18,7 @@ class TodayProgressPanel extends StatelessWidget {
     required this.allDone,
     required this.onBeansTap,
     required this.onReportTap,
+    required this.onHistoryTap,
   });
 
   final double progress;
@@ -29,6 +30,7 @@ class TodayProgressPanel extends StatelessWidget {
   final bool allDone;
   final VoidCallback onBeansTap;
   final VoidCallback onReportTap;
+  final VoidCallback onHistoryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -132,56 +134,65 @@ class TodayProgressPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Flexible(
-              child: MetaPill(
-                icon: Icons.savings_rounded,
-                label: '$beans 金豆',
-                onTap: onBeansTap,
-                emphasize: true,
-                backgroundColor: AppColors.beanGold,
-                foregroundColor: const Color(0xFF5A3A00),
-                iconColor: const Color(0xFF5A3A00),
-                leading: const BeanGlyph(size: 18),
-              ),
+            MetaPill(
+              icon: Icons.savings_rounded,
+              label: '$beans 金豆',
+              onTap: onBeansTap,
+              emphasize: true,
+              backgroundColor: AppColors.beanGold,
+              foregroundColor: const Color(0xFF5A3A00),
+              iconColor: const Color(0xFF5A3A00),
+              leading: const BeanGlyph(size: 18),
             ),
-            if (streak > 0) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: MetaPill(
-                  icon: Icons.local_fire_department_rounded,
-                  label: '连拍 $streak 天',
-                  backgroundColor: AppColors.streakFireSoft,
-                  foregroundColor: AppColors.streakFire,
-                  iconColor: AppColors.streakFire,
-                ),
+            if (streak > 0)
+              MetaPill(
+                icon: Icons.local_fire_department_rounded,
+                label: '连拍 $streak 天',
+                backgroundColor: AppColors.streakFireSoft,
+                foregroundColor: AppColors.streakFire,
+                iconColor: AppColors.streakFire,
               ),
-            ],
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: onReportTap,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brandDeep,
-                side: const BorderSide(color: AppColors.brand, width: 1.5),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Text(
-                '成长相册',
-                style: GoogleFonts.nunito(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ),
+            _LinkChip(label: '打卡记录', onTap: onHistoryTap),
+            _LinkChip(label: '成长相册', onTap: onReportTap),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _LinkChip extends StatelessWidget {
+  const _LinkChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.brandDeep,
+        side: const BorderSide(color: AppColors.brand, width: 1.5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      ),
     );
   }
 }

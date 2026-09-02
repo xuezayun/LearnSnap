@@ -32,10 +32,13 @@ class _BindPageState extends State<BindPage> {
   bool _loading = false;
   String? _error;
   bool _showNoCodeHelp = false;
+  bool _agreedLegal = false;
 
   String get _code => _normalizeCode(_codeController.text);
 
-  bool get _canSubmit => _code.length == _bindCodeLength && !_loading;
+  bool get _codeComplete => _code.length == _bindCodeLength && !_loading;
+
+  bool get _canSubmit => _codeComplete && _agreedLegal;
 
   @override
   void initState() {
@@ -66,8 +69,24 @@ class _BindPageState extends State<BindPage> {
     return raw.toUpperCase().replaceAll(RegExp(r'[^0-9A-F]'), '');
   }
 
+  void _promptLegal() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('请先阅读并同意隐私政策和用户协议')),
+    );
+  }
+
+  Future<void> _onLegalChanged(bool value) async {
+    setState(() => _agreedLegal = value);
+    if (value) {
+      await PrivacyConsentStore().agree();
+    }
+  }
+
   Future<void> _pasteFromClipboard() async {
-    if (!await PrivacyConsentStore().hasAgreed()) return;
+    if (!_agreedLegal) {
+      _promptLegal();
+      return;
+    }
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final pasted = _normalizeCode(data?.text ?? '');
     if (pasted.isEmpty) {
@@ -91,6 +110,10 @@ class _BindPageState extends State<BindPage> {
   }
 
   Future<void> _bind() async {
+    if (!_agreedLegal) {
+      _promptLegal();
+      return;
+    }
     final code = _code;
     if (code.length != _bindCodeLength) {
       setState(() => _error = '请把 8 位暗号填完整哦');
@@ -345,10 +368,15 @@ class _BindPageState extends State<BindPage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const LegalEntryLinks(compact: true),
-                    const SizedBox(height: 4),
+                    LegalConsentCheckbox(
+                      agreed: _agreedLegal,
+                      onChanged: _onLegalChanged,
+                    ),
+                    const SizedBox(height: 10),
                     FilledButton(
-                      onPressed: _canSubmit ? _bind : null,
+                      onPressed: _codeComplete
+                          ? _bind
+                          : null,
                       style: FilledButton.styleFrom(
                         minimumSize: Size(double.infinity, buttonHeight),
                       ),

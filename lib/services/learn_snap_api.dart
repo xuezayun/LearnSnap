@@ -3,11 +3,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/api_client.dart';
+import '../core/checkin_media_cache.dart';
 import '../core/cos_uploader.dart';
 import '../core/device_info_collector.dart';
 import '../core/local_cache.dart';
 import '../core/session_store.dart';
 import '../models/bean_ledger.dart';
+import '../models/checkin_history.dart';
 import '../models/checkin_media.dart';
 import '../models/checkin_report.dart';
 import '../models/child_checkin_detail.dart';
@@ -110,6 +112,20 @@ class LearnSnapApi {
     return CheckinReport.fromJson(data);
   }
 
+  Future<CheckinHistoryPageData> fetchCheckinHistory({
+    int? childId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final id = childId ?? await _sessionStore.childId;
+    if (id == null) {
+      throw ApiException('未绑定孩子账号');
+    }
+    final path = '/children/$id/checkins?page=$page&page_size=$pageSize';
+    final data = await _client.get(path);
+    return CheckinHistoryPageData.fromJson(data);
+  }
+
   Future<BeanLedgerPage> fetchBeanLedger({
     int? childId,
     int page = 1,
@@ -180,7 +196,10 @@ class LearnSnapApi {
     return raw
         .whereType<Map>()
         .map((e) => CheckinMediaItem.fromSubmittedJson(Map<String, dynamic>.from(e)))
-        .where((m) => m.hasRemotePreview || m.isExistingRemote)
+        .where((m) =>
+            m.hasRemotePreview ||
+            m.isExistingRemote ||
+            (m.existingMediaId != null && m.existingMediaId! > 0))
         .toList();
   }
 
@@ -263,10 +282,13 @@ class LearnSnapApi {
           receiveTimeout: const Duration(seconds: 60),
         ),
       );
-      return CheckinSubmitResult(
+      final result = CheckinSubmitResult(
         beans: _readInt(data['preheat_beans']),
         revised: data['revised'] as bool? ?? false,
+        checkinId: _readInt(data['checkin_id']) == 0 ? null : _readInt(data['checkin_id']),
       );
+      await _aliasSubmittedCache(media, result.checkinId);
+      return result;
     }
     if (media.any((m) => m.isExistingRemote && !m.needsUpload)) {
       throw ApiException('当前环境无法保留已提交媒体，请全部重新添加后提交');
@@ -305,10 +327,46 @@ class LearnSnapApi {
       receiveTimeout:
           hasVideo ? const Duration(seconds: 180) : const Duration(seconds: 120),
     );
-    return CheckinSubmitResult(
+    final result = CheckinSubmitResult(
       beans: _readInt(data['preheat_beans']),
       revised: data['revised'] as bool? ?? false,
+      checkinId: _readInt(data['checkin_id']) == 0 ? null : _readInt(data['checkin_id']),
     );
+    await _aliasSubmittedCache(media, result.checkinId);
+    return result;
+  }
+
+  Future<void> _aliasSubmittedCache(
+    List<CheckinMediaItem> local,
+    int? checkinId,
+  ) async {
+    if (checkinId == null || checkinId <= 0 || local.isEmpty) return;
+    try {
+      final submitted = await fetchCheckinMedia(checkinId);
+      final n = local.length < submitted.length ? local.length : submitted.length;
+      for (var i = 0; i < n; i++) {
+        final id = submitted[i].existingMediaId ?? 0;
+        final key = submitted[i].objectKey ?? '';
+        if (local[i].bytes != null && local[i].bytes!.isNotEmpty) {
+          await CheckinMediaCache.putBytes(
+            local[i].bytes!,
+            mediaId: id,
+            objectKey: key,
+          );
+        } else {
+          final path = local[i].filePath?.trim() ?? '';
+          if (path.isNotEmpty) {
+            await CheckinMediaCache.putFile(
+              path,
+              mediaId: id,
+              objectKey: key,
+            );
+          }
+        }
+      }
+    } catch (_) {
+      // cache alias is best-effort
+    }
   }
 
   int _readInt(dynamic value) {

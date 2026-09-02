@@ -57,7 +57,7 @@ class _VideoRecordPageState extends State<VideoRecordPage> {
       final usingFront = selected.lensDirection == CameraLensDirection.front;
       final controller = CameraController(
         selected,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: true,
       );
       await controller.initialize();

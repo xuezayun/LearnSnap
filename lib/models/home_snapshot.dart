@@ -8,10 +8,12 @@ class CheckinSubmitResult {
   const CheckinSubmitResult({
     required this.beans,
     required this.revised,
+    this.checkinId,
   });
 
   final int beans;
   final bool revised;
+  final int? checkinId;
 }
 
 class TodayBoxItem {

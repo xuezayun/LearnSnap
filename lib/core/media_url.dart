@@ -1,3 +1,5 @@
+import 'app_config.dart';
+
 /// Helpers for remote media URLs (esp. Tencent COS pre-signed GET).
 
 /// Dart [Uri.parse] treats `+` in the query as space (application/x-www-form-urlencoded).
@@ -13,4 +15,17 @@ String sanitizeMediaUrl(String url) {
   return '$base$query';
 }
 
-Uri parseMediaUri(String url) => Uri.parse(sanitizeMediaUrl(url));
+String resolveMediaUrl(String url) {
+  var s = sanitizeMediaUrl(url);
+  if (s.isEmpty) return s;
+  if (s.startsWith('//')) {
+    s = 'https:$s';
+  } else if (s.startsWith('/media') ||
+      s.startsWith('/static') ||
+      s.startsWith('/api')) {
+    s = '${AppConfig.siteOrigin}$s';
+  }
+  return s;
+}
+
+Uri parseMediaUri(String url) => Uri.parse(resolveMediaUrl(url));

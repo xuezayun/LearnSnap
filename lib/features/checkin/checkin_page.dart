@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -7,17 +8,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/api_client.dart';
+import '../../core/checkin_media_cache.dart';
+import '../../core/checkin_media_prepare.dart';
 import '../../core/checkin_timer.dart';
 import '../../core/checkin_timer_store.dart';
 import '../../core/device_layout.dart';
-import '../../core/media_url.dart';
+import '../../core/harmony_os.dart';
 import '../../core/video_compressor.dart';
 import '../../models/checkin_media.dart';
-import '../../models/checkin_photo.dart';
 import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import '../../widgets/child_name_badge.dart';
+import '../../widgets/remote_checkin_image.dart';
+import '../../widgets/checkin_video_thumb.dart';
+import 'image_preview_page.dart';
 import 'video_preview_page.dart';
 import 'video_record_page.dart';
 
@@ -81,11 +86,15 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.initialMedia.isNotEmpty) {
+    if (widget.revise) {
+      if (widget.initialMedia.isNotEmpty) {
+        _media.addAll(widget.initialMedia);
+        _hydrateLocalMedia();
+      } else if (widget.checkinId != null) {
+        _loadExistingMedia(widget.checkinId!);
+      }
+    } else if (widget.initialMedia.isNotEmpty) {
       _media.addAll(widget.initialMedia);
-    }
-    if (widget.revise && widget.checkinId != null && widget.initialMedia.isEmpty) {
-      _loadExistingMedia(widget.checkinId!);
     }
     _restoreTimer();
   }
@@ -172,6 +181,17 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _hydrateLocalMedia() async {
+    if (_media.isEmpty) return;
+    final hydrated = await CheckinMediaCache.hydrate(_media);
+    if (!mounted) return;
+    setState(() {
+      _media
+        ..clear()
+        ..addAll(hydrated);
+    });
+  }
+
   Future<void> _loadExistingMedia(int checkinId) async {
     setState(() {
       _loadingExisting = true;
@@ -179,11 +199,12 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
     });
     try {
       final items = await _api.fetchCheckinMedia(checkinId);
+      final hydrated = await CheckinMediaCache.hydrate(items);
       if (!mounted) return;
       setState(() {
         _media
           ..clear()
-          ..addAll(items);
+          ..addAll(hydrated);
         _loadingExisting = false;
         if (items.isEmpty) {
           _error = '还没有照片，再拍一张吧';
@@ -213,29 +234,68 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
   int get _imageCount => _media.where((m) => m.isImage).length;
   int get _videoCount => _media.where((m) => m.isVideo).length;
 
+  void _openImagePreview(CheckinMediaItem item) {
+    final bytes = item.bytes;
+    final filePath = item.filePath?.trim() ?? '';
+    final url = item.remoteUrl?.trim() ?? '';
+    final mediaId = item.existingMediaId ?? 0;
+    if (bytes == null && filePath.isEmpty && url.isEmpty && mediaId <= 0) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ImagePreviewPage(
+          bytes: bytes,
+          filePath: filePath.isEmpty ? null : filePath,
+          networkUrl: url.isEmpty ? null : url,
+          mediaId: mediaId > 0 ? mediaId : null,
+          objectKey: item.objectKey,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openVideoPreview(CheckinMediaItem item) async {
+    final path = item.filePath?.trim() ?? '';
+    final url = item.remoteUrl?.trim() ?? '';
+    final mediaId = item.existingMediaId ?? 0;
+    if (path.isEmpty && url.isEmpty && mediaId <= 0) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => VideoPreviewPage(
+          filePath: path.isEmpty ? null : path,
+          networkUrl: url.isEmpty ? null : url,
+          mediaId: mediaId > 0 ? mediaId : null,
+          objectKey: item.objectKey,
+          previewOnly: true,
+        ),
+      ),
+    );
+    if (mounted) {
+      await _hydrateLocalMedia();
+    }
+  }
+
   Future<void> _addPhoto(ImageSource source) async {
     if (_imageCount >= checkinMaxImages) {
       setState(() => _error = '这次最多拍 $checkinMaxImages 张照片哦');
       return;
     }
+    final harmony = await HarmonyOs.isHarmonyOs();
+    if (!mounted) return;
     if (source == ImageSource.camera) {
       final photo = await _picker.pickImage(
         source: source,
-        imageQuality: 92,
-        maxWidth: 2400,
+        imageQuality: harmony ? null : 92,
+        maxWidth: harmony ? null : 2400,
       );
       if (photo == null || !mounted) return;
-      final bytes = await photo.readAsBytes();
-      setState(() {
-        _error = null;
-        _media.add(
-          CheckinPhoto(bytes: bytes, filename: photo.name).toMediaItem(),
-        );
-      });
+      await _appendPickedImage(photo);
       return;
     }
     final remaining = checkinMaxImages - _imageCount;
-    final photos = await _picker.pickMultiImage(imageQuality: 92, maxWidth: 2400);
+    final photos = await _picker.pickMultiImage(
+      imageQuality: harmony ? null : 92,
+      maxWidth: harmony ? null : 2400,
+    );
     var added = 0;
     for (final photo in photos) {
       if (!mounted) return;
@@ -243,14 +303,26 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
         setState(() => _error = '这次最多拍 $checkinMaxImages 张照片哦');
         break;
       }
+      await _appendPickedImage(photo);
+      added += 1;
+    }
+  }
+
+  Future<void> _appendPickedImage(XFile photo) async {
+    try {
       final bytes = await photo.readAsBytes();
+      final item = await prepareCheckinImage(bytes: bytes, filename: photo.name);
+      if (!mounted) return;
       setState(() {
         _error = null;
-        _media.add(
-          CheckinPhoto(bytes: bytes, filename: photo.name).toMediaItem(),
-        );
+        _media.add(item);
       });
-      added += 1;
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : '照片处理失败，请重拍';
+      setState(() => _error = message.isNotEmpty ? message : '照片处理失败，请重拍');
     }
   }
 
@@ -303,7 +375,7 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('正在把视频变小一点…'),
+                  Text('正在处理视频…'),
                 ],
               ),
             ),
@@ -314,18 +386,18 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
 
     try {
       final compressed = await compressCheckinVideo(path);
+      final durablePath = await persistLocalVideo(compressed.path);
+      final persistedBytes = await File(durablePath).length();
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       setState(() {
         _error = null;
         _media.add(
           CheckinMediaItem.video(
-            filePath: compressed.path,
-            filename: ensureVideoFilename(
-              'video_${DateTime.now().millisecondsSinceEpoch}.mp4',
-            ),
+            filePath: durablePath,
+            filename: ensureVideoFilename(safeVideoFilename()),
             duration: duration,
-            fileSizeBytes: compressed.bytes,
+            fileSizeBytes: persistedBytes > 0 ? persistedBytes : compressed.bytes,
           ),
         );
       });
@@ -500,25 +572,35 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
                             if (item.isImage) {
                               return _ImageThumb(
                                 bytes: item.bytes,
+                                filePath: item.filePath,
                                 remoteUrl: item.remoteUrl,
+                                mediaId: item.existingMediaId,
+                                objectKey: item.objectKey,
+                                onTap: () => _openImagePreview(item),
                                 onRemove: () =>
                                     setState(() => _media.removeAt(index)),
                               );
                             }
-                            return _VideoThumb(
-                              duration: item.duration,
-                              fileSizeBytes: item.fileSizeBytes,
-                              onTap: () => Navigator.of(context).push<void>(
-                                MaterialPageRoute(
-                                  builder: (_) => VideoPreviewPage(
-                                    filePath: item.filePath,
-                                    networkUrl: item.remoteUrl,
-                                    previewOnly: true,
+                            return Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CheckinVideoThumb(
+                                  filePath: item.filePath,
+                                  mediaId: item.existingMediaId,
+                                  objectKey: item.objectKey,
+                                  duration: item.duration,
+                                  fileSizeBytes: item.fileSizeBytes,
+                                  onTap: () => _openVideoPreview(item),
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: _RemoveBtn(
+                                    onRemove: () =>
+                                        setState(() => _media.removeAt(index)),
                                   ),
                                 ),
-                              ),
-                              onRemove: () =>
-                                  setState(() => _media.removeAt(index)),
+                              ],
                             );
                           },
                           childCount: itemCount,
@@ -586,30 +668,38 @@ class _CheckinPageState extends State<CheckinPage> with WidgetsBindingObserver {
 
 class _ImageThumb extends StatelessWidget {
   const _ImageThumb({
+    required this.onTap,
     required this.onRemove,
     this.bytes,
+    this.filePath,
     this.remoteUrl,
+    this.mediaId,
+    this.objectKey,
   });
 
   final Uint8List? bytes;
+  final String? filePath;
   final String? remoteUrl;
+  final int? mediaId;
+  final String? objectKey;
+  final VoidCallback onTap;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final Widget image;
+    final path = filePath?.trim() ?? '';
     if (bytes != null) {
       image = Image.memory(bytes!, fit: BoxFit.cover);
-    } else if (remoteUrl != null && remoteUrl!.isNotEmpty) {
-      image = Image.network(
-        sanitizeMediaUrl(remoteUrl!),
+    } else if (path.isNotEmpty) {
+      image = Image.file(File(path), fit: BoxFit.cover);
+    } else if ((mediaId != null && mediaId! > 0) ||
+        (remoteUrl != null && remoteUrl!.isNotEmpty)) {
+      image = RemoteCheckinImage(
+        mediaId: mediaId,
+        objectKey: objectKey,
+        url: remoteUrl,
         fit: BoxFit.cover,
-        errorBuilder: (_, error, stackTrace) => ColoredBox(
-          color: const Color(0xFFE8ECF0),
-          child: Center(
-            child: Icon(Icons.broken_image_outlined, color: AppColors.inkFaint),
-          ),
-        ),
       );
     } else {
       image = ColoredBox(
@@ -622,77 +712,14 @@ class _ImageThumb extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: image,
-        ),
-        Positioned(
-          top: 6,
-          right: 6,
-          child: _RemoveBtn(onRemove: onRemove),
-        ),
-      ],
-    );
-  }
-}
-
-class _VideoThumb extends StatelessWidget {
-  const _VideoThumb({
-    required this.duration,
-    required this.onTap,
-    required this.onRemove,
-    this.fileSizeBytes,
-  });
-
-  final Duration? duration;
-  final int? fileSizeBytes;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = duration;
-    final timeLabel = d == null
-        ? null
-        : '${d.inMinutes}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
-    final sizeLabel =
-        fileSizeBytes != null && fileSizeBytes! > 0 ? formatFileSize(fileSizeBytes!) : null;
-    final parts = <String>[
-      if (timeLabel != null) timeLabel,
-      if (sizeLabel != null) sizeLabel,
-    ];
-    final label = parts.isEmpty ? '视频' : parts.join(' · ');
-    final iconSize = isTablet(context) ? 40.0 : 34.0;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
         Material(
-          color: const Color(0xFF1A2A2E),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.play_circle_fill_rounded,
-                    color: Colors.white, size: iconSize),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: image,
             ),
           ),
         ),

@@ -10,6 +10,8 @@ import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/kid_style.dart';
 import '../../widgets/app_scaffold_bg.dart';
+import '../../widgets/remote_checkin_image.dart';
+import 'image_preview_page.dart';
 import 'video_preview_page.dart';
 
 class CheckinDetailPage extends StatefulWidget {
@@ -69,19 +71,31 @@ class _CheckinDetailPageState extends State<CheckinDetailPage> {
     }
   }
 
-  void _openImage(String url) {
+  void _openImage(CheckinMediaItem item) {
+    final url = item.remoteUrl?.trim() ?? '';
+    final mediaId = item.existingMediaId ?? 0;
+    if (url.isEmpty && mediaId <= 0) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _FullScreenImagePage(url: url),
+        builder: (_) => ImagePreviewPage(
+          networkUrl: url.isEmpty ? null : url,
+          mediaId: mediaId > 0 ? mediaId : null,
+          objectKey: item.objectKey,
+        ),
       ),
     );
   }
 
-  void _openVideo(String url) {
+  void _openVideo(CheckinMediaItem item) {
+    final url = item.remoteUrl?.trim() ?? '';
+    final mediaId = item.existingMediaId ?? 0;
+    if (url.isEmpty && mediaId <= 0) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => VideoPreviewPage(
-          networkUrl: url,
+          networkUrl: url.isEmpty ? null : url,
+          mediaId: mediaId > 0 ? mediaId : null,
+          objectKey: item.objectKey,
           previewOnly: true,
         ),
       ),
@@ -427,8 +441,8 @@ class _MediaGrid extends StatelessWidget {
   });
 
   final List<CheckinMediaItem> media;
-  final ValueChanged<String> onOpenImage;
-  final ValueChanged<String> onOpenVideo;
+  final ValueChanged<CheckinMediaItem> onOpenImage;
+  final ValueChanged<CheckinMediaItem> onOpenVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -443,12 +457,10 @@ class _MediaGrid extends StatelessWidget {
             item: item,
             size: size,
             onTap: () {
-              final url = item.remoteUrl?.trim() ?? '';
-              if (url.isEmpty) return;
               if (item.isVideo) {
-                onOpenVideo(url);
+                onOpenVideo(item);
               } else {
-                onOpenImage(url);
+                onOpenImage(item);
               }
             },
           ),
@@ -486,7 +498,7 @@ class _MediaTile extends StatelessWidget {
                   children: [
                     if (url.isNotEmpty)
                       Image.network(
-                        sanitizeMediaUrl(url),
+                        resolveMediaUrl(url),
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
                             Container(
@@ -505,7 +517,7 @@ class _MediaTile extends StatelessWidget {
                     ),
                   ],
                 )
-              : url.isEmpty
+              : (url.isEmpty && (item.existingMediaId == null || item.existingMediaId! <= 0))
                   ? Container(
                       color: const Color(0xFFE8ECF0),
                       alignment: Alignment.center,
@@ -514,10 +526,12 @@ class _MediaTile extends StatelessWidget {
                         size: isTablet(context) ? 36 : 28,
                       ),
                     )
-                  : Image.network(
-                      sanitizeMediaUrl(url),
+                  : RemoteCheckinImage(
+                      mediaId: item.existingMediaId,
+                      objectKey: item.objectKey,
+                      url: url.isEmpty ? null : url,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      error: Container(
                         color: const Color(0xFFE8ECF0),
                         alignment: Alignment.center,
                         child: Icon(
@@ -571,40 +585,6 @@ class _ErrorState extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FullScreenImagePage extends StatelessWidget {
-  const _FullScreenImagePage({required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxImageWidth = isTablet(context) ? 900.0 : double.infinity;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('查看图片'),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxImageWidth),
-          child: InteractiveViewer(
-            child: Image.network(
-              sanitizeMediaUrl(url),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Text(
-                '图片加载失败',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-          ),
         ),
       ),
     );

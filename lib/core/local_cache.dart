@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/painting.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'checkin_media_cache.dart';
+
 /// Clears in-memory and on-disk local caches after logout.
 Future<void> clearLocalCache() async {
   PaintingBinding.instance.imageCache.clear();
@@ -11,6 +13,7 @@ Future<void> clearLocalCache() async {
   await Future.wait([
     _clearDirectory(() => getTemporaryDirectory()),
     _clearDirectory(() => getApplicationCacheDirectory()),
+    CheckinMediaCache.clear(),
   ]);
 }
 

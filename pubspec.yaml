@@ -1,7 +1,7 @@
 name: app
 description: "拍习惯：家庭习惯打卡"
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.1.0+3
 
 environment:
   sdk: ^3.10.8
@@ -22,6 +22,7 @@ dependencies:
   video_player: ^2.9.3
   path: ^1.9.1
   path_provider: ^2.1.5
+  cross_file: ^0.3.4
   shared_preferences: ^2.5.3
   google_fonts: ^8.1.0
   video_compress: ^3.1.4
@@ -31,6 +32,10 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+
+# 鸿蒙4.0/EMUI 机型 ExoPlayer 硬解兼容问题：强制锁定旧版
+dependency_overrides:
+  video_player_android: 2.7.1
 
 flutter_launcher_icons:
   android: true

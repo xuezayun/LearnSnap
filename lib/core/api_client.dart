@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import 'app_config.dart';
@@ -74,6 +76,31 @@ class ApiClient {
         options: options,
       );
       return _unwrap(response);
+    } on DioException catch (e) {
+      throw _fromDio(e);
+    }
+  }
+
+  /// Raw bytes (images / video) — do not unwrap `{code,data}` JSON.
+  Future<Uint8List> getBytes(String path) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        path,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': '*/*'},
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
+      final status = response.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        throw ApiException('请求失败($status)', statusCode: status);
+      }
+      final data = response.data;
+      if (data == null || data.isEmpty) {
+        throw ApiException('空响应', statusCode: status);
+      }
+      return Uint8List.fromList(data);
     } on DioException catch (e) {
       throw _fromDio(e);
     }

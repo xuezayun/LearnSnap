@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:video_compress/video_compress.dart';
 
 import '../models/checkin_media.dart';
 
-const int _checkinCompressSoftMaxBytes = 3 * 1024 * 1024 ~/ 2; // 1.5 MB
+/// Already small enough for check-in; skip a full re-encode.
+const int _checkinCompressSkipMaxBytes = 12 * 1024 * 1024;
 const int _checkinCompressFrameRate = 24;
 
 class CompressedVideo {
@@ -59,8 +61,9 @@ CompressedVideo _fallbackOrThrow(String inputPath, int originalBytes) {
   return CompressedVideo(path: inputPath, bytes: originalBytes);
 }
 
-/// Compress a local check-in video (LowQuality @ 24fps).
-/// Retries once when still above soft max; falls back to original when needed.
+/// Compress a local check-in video (one LowQuality @ 24fps pass).
+/// Skips re-encode when the source is already under 12MB.
+/// Falls back to the original when compress fails or does not shrink.
 Future<CompressedVideo> compressCheckinVideo(String inputPath) async {
   final input = File(inputPath);
   if (!await input.exists()) {
@@ -70,25 +73,33 @@ Future<CompressedVideo> compressCheckinVideo(String inputPath) async {
   if (originalBytes <= 0) {
     throw Exception('视频文件为空');
   }
+  if (originalBytes <= _checkinCompressSkipMaxBytes) {
+    return CompressedVideo(path: inputPath, bytes: originalBytes);
+  }
 
   final first = await _runCompress(inputPath);
   if (first == null || first.bytes >= originalBytes) {
     return _fallbackOrThrow(inputPath, originalBytes);
   }
-
-  var best = first;
-  if (best.bytes > _checkinCompressSoftMaxBytes) {
-    final second = await _runCompress(best.path);
-    if (second != null &&
-        second.bytes > 0 &&
-        second.bytes < best.bytes) {
-      best = second;
-    }
-  }
-
-  if (best.bytes > checkinMaxVideoBytes) {
+  if (first.bytes > checkinMaxVideoBytes) {
     throw Exception('压缩后仍超过 50MB，请缩短录制时长');
   }
+  return first;
+}
 
-  return best;
+/// First-frame JPEG for a local video; null if extraction fails.
+Future<Uint8List?> extractVideoThumbnail(String path) async {
+  final file = File(path);
+  if (!await file.exists()) return null;
+  try {
+    final bytes = await VideoCompress.getByteThumbnail(
+      path,
+      quality: 60,
+      position: 0,
+    );
+    if (bytes == null || bytes.isEmpty) return null;
+    return bytes;
+  } catch (_) {
+    return null;
+  }
 }

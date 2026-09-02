@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/checkin_media.dart';
 import 'api_client.dart';
+import 'checkin_media_cache.dart';
+import 'checkin_media_prepare.dart';
+import 'harmony_os.dart';
 import 'media_url.dart';
 
 class CosPresignItem {
@@ -161,14 +165,17 @@ Future<void> putToCos({
   required CosPresignItem presign,
   required CheckinMediaItem item,
 }) async {
-  final headers = Map<String, dynamic>.from(presign.headers);
-  if (!headers.containsKey('Content-Type')) {
-    headers['Content-Type'] = guessContentType(item);
-  }
+  final contentType = presign.headers['Content-Type']?.trim().isNotEmpty == true
+      ? presign.headers['Content-Type']!.trim()
+      : guessContentType(item);
 
-  final Object data;
+  final Uint8List bytes;
   if (item.isImage) {
-    data = item.bytes!;
+    final raw = item.bytes;
+    if (raw == null || raw.isEmpty) {
+      throw ApiException('照片是空的，请重新拍一张');
+    }
+    bytes = raw;
   } else {
     final path = item.filePath?.trim() ?? '';
     if (path.isEmpty) {
@@ -178,28 +185,31 @@ Future<void> putToCos({
     if (!await file.exists()) {
       throw ApiException('视频文件不存在，请重新录制或选择');
     }
-    final length = await file.length();
-    if (length <= 0) {
+    bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
       throw ApiException('视频文件为空，请重新录制或选择');
     }
-    headers[Headers.contentLengthHeader] = length.toString();
-    // Stream file bytes — do not pass File (Dio stringifies it).
-    data = file.openRead();
   }
+
+  final headers = <String, dynamic>{
+    'Content-Type': contentType,
+    Headers.contentLengthHeader: bytes.length.toString(),
+  };
 
   final putUrl = sanitizeMediaUrl(presign.putUrl);
   try {
     final response = await dio.put<dynamic>(
       putUrl,
-      data: data,
+      data: bytes,
       options: Options(
         headers: headers,
-        contentType: headers['Content-Type']?.toString(),
+        contentType: contentType,
         sendTimeout: item.isVideo
             ? const Duration(seconds: 180)
             : const Duration(seconds: 120),
         receiveTimeout: const Duration(seconds: 60),
-        // Absolute COS URL — do not send JWT
+        followRedirects: false,
+        responseType: ResponseType.plain,
         extra: {'skipAuth': true},
         validateStatus: (code) => code != null && code >= 200 && code < 300,
       ),
@@ -208,6 +218,10 @@ Future<void> putToCos({
         response.statusCode! < 200 ||
         response.statusCode! >= 300) {
       throw ApiException('上传到云存储失败（${response.statusCode}）');
+    }
+    final body = '${response.data ?? ''}';
+    if (cosResponseIndicatesError(body)) {
+      throw ApiException('上传到云存储失败，请检查网络后重试');
     }
   } on ApiException {
     rethrow;
@@ -226,12 +240,99 @@ Future<void> putToCos({
   }
 }
 
+/// HarmonyOS 3/4: upload through the API so the server PUTs to COS.
+Future<List<CosUploadedMedia>?> ingestCheckinMediaViaServer({
+  required ApiClient client,
+  required List<CheckinMediaItem> media,
+}) async {
+  final formData = FormData();
+  for (final item in media) {
+    if (item.isImage) {
+      final bytes = item.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw ApiException('照片是空的，请重新拍一张');
+      }
+      formData.files.add(
+        MapEntry(
+          'files',
+          MultipartFile.fromBytes(
+            bytes,
+            filename: item.filename,
+          ),
+        ),
+      );
+    } else {
+      final path = item.filePath?.trim() ?? '';
+      if (path.isEmpty) {
+        throw ApiException('视频文件路径无效');
+      }
+      formData.files.add(
+        MapEntry(
+          'files',
+          await MultipartFile.fromFile(
+            path,
+            filename: item.filename.toLowerCase().endsWith('.mp4') ||
+                    item.filename.toLowerCase().endsWith('.mov') ||
+                    item.filename.toLowerCase().endsWith('.webm')
+                ? item.filename
+                : '${item.filename}.mp4',
+          ),
+        ),
+      );
+    }
+  }
+
+  Map<String, dynamic> data;
+  try {
+    data = await client.postMultipart(
+      '/checkins/media/ingest',
+      formData,
+      sendTimeout: const Duration(seconds: 180),
+      receiveTimeout: const Duration(seconds: 60),
+    );
+  } on ApiException catch (e) {
+    if (e.code == 40201) return null;
+    rethrow;
+  }
+
+  final itemsRaw = data['items'];
+  if (itemsRaw is! List || itemsRaw.length != media.length) {
+    throw ApiException('云存储上传结果异常');
+  }
+  final uploaded = <CosUploadedMedia>[];
+  for (var i = 0; i < media.length; i++) {
+    final raw = itemsRaw[i];
+    if (raw is! Map) {
+      throw ApiException('云存储上传结果异常');
+    }
+    final map = Map<String, dynamic>.from(raw);
+    final objectKey = map['object_key'] as String? ?? '';
+    if (objectKey.isEmpty) {
+      throw ApiException('云存储上传结果异常');
+    }
+    await CheckinMediaCache.putItem(media[i], objectKey: objectKey);
+    uploaded.add(
+      CosUploadedMedia(
+        objectKey: objectKey,
+        mediaType: map['media_type'] as String? ??
+            (media[i].isVideo ? 'video' : 'image'),
+        sortOrder: i,
+        contentType: map['content_type'] as String? ?? guessContentType(media[i]),
+      ),
+    );
+  }
+  return uploaded;
+}
+
 /// Returns null when COS is disabled (caller should fall back to multipart).
 Future<List<CosUploadedMedia>?> uploadCheckinMediaViaCos({
   required ApiClient client,
   required Dio dio,
   required List<CheckinMediaItem> media,
 }) async {
+  if (await HarmonyOs.shouldUploadViaServer()) {
+    return ingestCheckinMediaViaServer(client: client, media: media);
+  }
   final meta = <Map<String, dynamic>>[];
   for (final item in media) {
     final size = await mediaByteSize(item);
@@ -286,6 +387,7 @@ Future<List<CosUploadedMedia>?> uploadCheckinMediaViaCos({
       throw ApiException('云存储预签名不完整');
     }
     await putToCos(dio: dio, presign: presign, item: media[i]);
+    await CheckinMediaCache.putItem(media[i], objectKey: presign.objectKey);
     uploaded.add(
       CosUploadedMedia(
         objectKey: presign.objectKey,
