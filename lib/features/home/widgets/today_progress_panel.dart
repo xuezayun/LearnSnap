@@ -19,6 +19,7 @@ class TodayProgressPanel extends StatelessWidget {
     required this.onBeansTap,
     required this.onReportTap,
     required this.onHistoryTap,
+    required this.onUpcomingTap,
   });
 
   final double progress;
@@ -31,6 +32,7 @@ class TodayProgressPanel extends StatelessWidget {
   final VoidCallback onBeansTap;
   final VoidCallback onReportTap;
   final VoidCallback onHistoryTap;
+  final VoidCallback onUpcomingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +159,7 @@ class TodayProgressPanel extends StatelessWidget {
                 foregroundColor: AppColors.streakFire,
                 iconColor: AppColors.streakFire,
               ),
+            _LinkChip(label: '即将打卡', onTap: onUpcomingTap),
             _LinkChip(label: '打卡记录', onTap: onHistoryTap),
             _LinkChip(label: '成长相册', onTap: onReportTap),
           ],

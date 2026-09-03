@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'core/api_client.dart';
@@ -35,7 +37,14 @@ class _LearnSnapAppState extends State<LearnSnapApp> {
   }
 
   Future<void> _loadConsent() async {
-    final agreed = await _consent.hasAgreed();
+    var agreed = false;
+    try {
+      agreed = await _consent
+          .hasAgreed()
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
+    } catch (_) {
+      agreed = false;
+    }
     if (!mounted) return;
     setState(() {
       _agreed = agreed;
@@ -109,28 +118,40 @@ class _AppRootState extends State<AppRoot> {
   }
 
   Future<void> _bootstrap() async {
-    var bound = await _api.hasSession();
-    if (bound) {
-      try {
-        await _api.sendDeviceHeartbeat();
-      } on ApiException catch (e) {
-        if (e.isSessionInvalid) {
-          await _api.clearSession();
-          bound = false;
-          if (e.code == 40310) {
-            _kickNotice = e.message;
+    var bound = false;
+    try {
+      bound = await _api
+          .hasSession()
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
+      if (bound) {
+        try {
+          await _api
+              .sendDeviceHeartbeat()
+              .timeout(const Duration(seconds: 8));
+        } on ApiException catch (e) {
+          if (e.isSessionInvalid) {
+            bound = false;
+            _kickNotice = e.message.trim().isNotEmpty
+                ? e.message
+                : '登录已失效，请重新输入暗号';
+            await _api.clearSession();
           }
+        } on TimeoutException {
+          // 心跳超时不挡启动，进首页后再试
+        } catch (_) {
+          // 其它失败不阻断启动
         }
-        // 其它心跳失败（网络等）不阻断启动，进首页后再试
-      } catch (_) {
-        // ignore
+      }
+    } catch (_) {
+      bound = false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _bound = bound;
+          _loading = false;
+        });
       }
     }
-    if (!mounted) return;
-    setState(() {
-      _bound = bound;
-      _loading = false;
-    });
   }
 
   @override
@@ -154,7 +175,10 @@ class _AppRootState extends State<AppRoot> {
     return HomePage(
       api: _api,
       onLogout: ({String? notice}) async {
-        await _api.clearSession();
+        try {
+          await _api.clearSession();
+        } catch (_) {}
+        if (!mounted) return;
         setState(() {
           _bound = false;
           _kickNotice = notice;

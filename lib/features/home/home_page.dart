@@ -15,8 +15,10 @@ import '../beans/bean_ledger_page.dart';
 import '../checkin/checkin_detail_page.dart';
 import '../checkin/checkin_history_page.dart';
 import '../checkin/checkin_page.dart';
+import '../checkin/upcoming_checkin_page.dart';
 import '../honor/honor_badge_page.dart';
 import '../report/checkin_report_page.dart';
+import '../review_tools/review_tools_page.dart';
 import 'widgets/all_done_card.dart';
 import 'widgets/empty_tasks_hint.dart';
 import 'widgets/home_greeting.dart';
@@ -246,6 +248,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
+  void _openUpcoming() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UpcomingCheckinPage(api: _api),
+      ),
+    );
+  }
+
   void _openBeanLedger(int balance) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -267,6 +277,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           api: _api,
           initial: badge,
         ),
+      ),
+    ).then((_) {
+      if (mounted) _load(silent: true);
+    });
+  }
+  void _openReviewTools() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReviewToolsPage(api: _api),
       ),
     ).then((_) {
       if (mounted) _load(silent: true);
@@ -359,6 +378,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     onLogout: _showLogoutDialog,
                                     updateInfo: _updateInfo,
                                     onUpdateTap: _onUpdateTap,
+                                    showReviewTools:
+                                        snapshot?.todayBox.reviewToolsEnabled ==
+                                            true,
+                                    onReviewToolsTap: _openReviewTools,
                                   ),
                                   const SizedBox(height: 18),
                                   if (snapshot != null) ...[
@@ -381,6 +404,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                         snapshot.todayBox.energyBeans,
                                       ),
                                       onHistoryTap: _openHistory,
+                                      onUpcomingTap: _openUpcoming,
                                       onReportTap: _openReport,
                                     ),
                                   ],
@@ -410,6 +434,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                                   title: entry.value.title,
                                                   taskType: entry.value.taskType,
                                                   category: section.category,
+                                                  subtitle: entry.value.early &&
+                                                          !entry.value.submitted
+                                                      ? entry.value.dueLabel
+                                                      : null,
+                                                  extraChip: entry.value.early &&
+                                                          !entry.value.submitted
+                                                      ? '可以提前拍'
+                                                      : null,
                                                   onTap: () =>
                                                       _onBoxTap(entry.value),
                                                   compact: tablet,

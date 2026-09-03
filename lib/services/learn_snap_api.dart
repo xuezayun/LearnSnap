@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -79,8 +81,13 @@ class LearnSnapApi {
   }
 
   Future<void> clearSession() async {
-    await _sessionStore.clear();
-    await clearLocalCache();
+    try {
+      await _sessionStore.clear().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // Token 清不掉也不能挡住回到暗号页
+    }
+    // 缓存目录可能很大，不阻塞启动 / 退出
+    unawaited(clearLocalCache().catchError((_) {}));
   }
 
   Future<int?> getChildId() => _sessionStore.childId;

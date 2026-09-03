@@ -5,6 +5,7 @@ enum TaskCategory {
   rejected,
   awaitingReview,
   completed,
+  upcoming,
 }
 
 class TaskListSection {
@@ -36,6 +37,8 @@ String titleForCategory(TaskCategory category) {
       return '等家长看';
     case TaskCategory.completed:
       return '过关啦';
+    case TaskCategory.upcoming:
+      return '即将打卡';
   }
 }
 

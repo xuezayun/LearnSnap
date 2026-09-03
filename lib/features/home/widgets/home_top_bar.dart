@@ -12,11 +12,15 @@ class HomeTopBar extends StatelessWidget {
     required this.onLogout,
     this.updateInfo,
     this.onUpdateTap,
+    this.showReviewTools = false,
+    this.onReviewToolsTap,
   });
 
   final VoidCallback onLogout;
   final ClientVersionInfo? updateInfo;
   final VoidCallback? onUpdateTap;
+  final bool showReviewTools;
+  final VoidCallback? onReviewToolsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +90,7 @@ class HomeTopBar extends StatelessWidget {
           onSelected: (value) {
             if (value == 'privacy') openPrivacyPolicy(context);
             if (value == 'terms') openUserAgreement(context);
+            if (value == 'review') onReviewToolsTap?.call();
             if (value == 'rebind') onLogout();
           },
           itemBuilder: (context) => [
@@ -97,6 +102,11 @@ class HomeTopBar extends StatelessWidget {
               value: 'terms',
               child: Text('用户协议'),
             ),
+            if (showReviewTools)
+              const PopupMenuItem(
+                value: 'review',
+                child: Text('审核助手'),
+              ),
             const PopupMenuItem(
               value: 'rebind',
               child: Text('换一台设备'),

@@ -31,6 +31,12 @@ class TodayBoxItem {
     this.media = const [],
     this.parentReview,
     this.durationMin = 15,
+    this.early = false,
+    this.dueDate = '',
+    this.dueLabel = '',
+    this.repeatLabel = '',
+    this.nextDueDate = '',
+    this.nextDueLabel = '',
   });
 
   final int assignmentId;
@@ -46,11 +52,19 @@ class TodayBoxItem {
   final List<CheckinMediaItem> media;
   final ParentReviewSummary? parentReview;
   final int durationMin;
+  final bool early;
+  final String dueDate;
+  final String dueLabel;
+  final String repeatLabel;
+  final String nextDueDate;
+  final String nextDueLabel;
 
   bool get isFinalized => submitted && !canRevise;
 
   String get displaySubtitle {
     if (quotaBlocked && !submitted) return '今天次数用完啦';
+    if (!submitted && early && dueLabel.isNotEmpty) return dueLabel;
+    if (!submitted && nextDueLabel.isNotEmpty) return '到$nextDueLabel再拍';
     if (!submitted) return '拍照就能过关';
     if (canRevise) {
       if (checkinStatus == 'rejected') return '再拍一次会更好';
@@ -86,6 +100,26 @@ class TodayBoxItem {
       media: media,
       parentReview: parentReview,
       durationMin: _readDurationMin(json['duration_min']),
+      early: json['early'] as bool? ?? false,
+      dueDate: json['due_date'] as String? ?? '',
+      dueLabel: json['due_label'] as String? ?? '',
+      repeatLabel: json['repeat_label'] as String? ?? '',
+      nextDueDate: json['next_due_date'] as String? ?? '',
+      nextDueLabel: json['next_due_label'] as String? ?? '',
+    );
+  }
+
+  factory TodayBoxItem.fromUpcomingJson(Map<String, dynamic> json) {
+    return TodayBoxItem(
+      assignmentId: json['assignment_id'] as int,
+      title: json['title'] as String? ?? '习惯任务',
+      taskType: json['task_type'] as String? ?? 'study',
+      submitted: false,
+      sortOrder: 0,
+      durationMin: _readDurationMin(json['duration_min']),
+      repeatLabel: json['repeat_label'] as String? ?? '',
+      nextDueDate: json['next_due_date'] as String? ?? '',
+      nextDueLabel: json['next_due_label'] as String? ?? '',
     );
   }
 
@@ -112,6 +146,7 @@ class TodayBox {
     required this.streak,
     required this.energyBeans,
     required this.boxes,
+    this.upcoming = const [],
     this.dailyCheckinTaskLimit = 3,
     this.dailyCheckinUsed = 0,
     this.membershipTier = 'free',
@@ -126,6 +161,7 @@ class TodayBox {
   final int streak;
   final int energyBeans;
   final List<TodayBoxItem> boxes;
+  final List<TodayBoxItem> upcoming;
   final int dailyCheckinTaskLimit;
   final int dailyCheckinUsed;
   final String membershipTier;
@@ -134,6 +170,7 @@ class TodayBox {
 
   factory TodayBox.fromJson(Map<String, dynamic> json) {
     final rawBoxes = json['boxes'] as List<dynamic>? ?? [];
+    final rawUpcoming = json['upcoming'] as List<dynamic>? ?? [];
     return TodayBox(
       date: json['date'] as String? ?? '',
       nickname: json['nickname'] as String? ?? '同学',
@@ -148,6 +185,10 @@ class TodayBox {
       boxes: rawBoxes
           .whereType<Map<String, dynamic>>()
           .map(TodayBoxItem.fromJson)
+          .toList(),
+      upcoming: rawUpcoming
+          .whereType<Map<String, dynamic>>()
+          .map(TodayBoxItem.fromUpcomingJson)
           .toList(),
       honorBadge: HonorBadge.fromJson(
         json['honor_badge'] is Map

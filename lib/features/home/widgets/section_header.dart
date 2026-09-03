@@ -26,6 +26,8 @@ class SectionHeader extends StatelessWidget {
         return AppColors.danger;
       case TaskCategory.completed:
         return AppColors.success;
+      case TaskCategory.upcoming:
+        return AppColors.inkMuted;
     }
   }
 

@@ -126,6 +126,8 @@ String kidSectionTitle(TaskCategory category) {
       return '再拍一次会更好';
     case TaskCategory.completed:
       return '过关啦';
+    case TaskCategory.upcoming:
+      return '即将打卡';
   }
 }
 
@@ -139,6 +141,8 @@ String kidChipLabel(TaskCategory category) {
       return '再试试';
     case TaskCategory.completed:
       return '过关啦';
+    case TaskCategory.upcoming:
+      return '还没到';
   }
 }
 
@@ -152,6 +156,8 @@ String kidCtaLabel(TaskCategory category) {
       return '再拍一次';
     case TaskCategory.completed:
       return '看看表扬';
+    case TaskCategory.upcoming:
+      return '先看看';
   }
 }
 

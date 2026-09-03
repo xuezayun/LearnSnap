@@ -444,62 +444,47 @@ class _BindCodeBoxes extends StatelessWidget {
 
     return Row(
       children: [
-        for (var group = 0; group < 2; group++) ...[
-          if (group == 1)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                '—',
-                style: GoogleFonts.nunito(
-                  fontSize: tablet ? 22 : 18,
-                  color: AppColors.inkFaint,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          for (var j = 0; j < length ~/ 2; j++) ...[
-            if (j > 0) const SizedBox(width: 6),
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  final i = group * (length ~/ 2) + j;
-                  final active = focused &&
-                      i == code.length.clamp(0, length - 1) &&
-                      code.length < length;
-                  final filled = i < code.length;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    height: boxHeight,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: filled
-                          ? AppColors.brandSoft
-                          : const Color(0xFFF4F7F8),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: active
-                            ? AppColors.brand
-                            : (filled
-                                ? AppColors.brand.withValues(alpha: 0.35)
-                                : const Color(0xFFE0E6E8)),
-                        width: active ? 2.2 : 1,
-                      ),
+        for (var i = 0; i < length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final active = focused &&
+                    i == code.length.clamp(0, length - 1) &&
+                    code.length < length;
+                final filled = i < code.length;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOut,
+                  height: boxHeight,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? AppColors.brandSoft
+                        : const Color(0xFFF4F7F8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: active
+                          ? AppColors.brand
+                          : (filled
+                              ? AppColors.brand.withValues(alpha: 0.35)
+                              : const Color(0xFFE0E6E8)),
+                      width: active ? 2.2 : 1,
                     ),
-                    child: Text(
-                      filled ? code[i] : '',
-                      style: GoogleFonts.nunito(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        color: AppColors.ink,
-                      ),
+                  ),
+                  child: Text(
+                    filled ? code[i] : '',
+                    style: GoogleFonts.nunito(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      color: AppColors.ink,
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ],
       ],
     );

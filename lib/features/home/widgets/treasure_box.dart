@@ -14,6 +14,8 @@ class TreasureBox extends StatefulWidget {
     required this.onTap,
     this.compact = false,
     this.index = 0,
+    this.subtitle,
+    this.extraChip,
   });
 
   final String title;
@@ -22,6 +24,8 @@ class TreasureBox extends StatefulWidget {
   final VoidCallback onTap;
   final bool compact;
   final int index;
+  final String? subtitle;
+  final String? extraChip;
 
   @override
   State<TreasureBox> createState() => _TreasureBoxState();
@@ -58,6 +62,7 @@ class _TreasureBoxState extends State<TreasureBox>
   Widget build(BuildContext context) {
     final look = lookForTaskType(widget.taskType);
     final done = widget.category == TaskCategory.completed;
+    final upcoming = widget.category == TaskCategory.upcoming;
     final cta = kidCtaLabel(widget.category);
     final chip = kidChipLabel(widget.category);
     final iconSize = widget.compact ? 30.0 : 28.0;
@@ -142,8 +147,27 @@ class _TreasureBoxState extends State<TreasureBox>
                                       ? const Color(0xFFEEF8EE)
                                       : look.wash,
                                 ),
+                                if (widget.extraChip != null &&
+                                    widget.extraChip!.isNotEmpty)
+                                  _MiniTag(
+                                    label: widget.extraChip!,
+                                    color: look.color,
+                                    wash: look.wash,
+                                  ),
                               ],
                             ),
+                            if (widget.subtitle != null &&
+                                widget.subtitle!.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                widget.subtitle!,
+                                style: GoogleFonts.nunito(
+                                  fontSize: widget.compact ? 14 : 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkMuted,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -152,7 +176,9 @@ class _TreasureBoxState extends State<TreasureBox>
                   const SizedBox(height: 12),
                   _QuestButton(
                     label: cta,
-                    color: done ? AppColors.success : look.color,
+                    color: done
+                        ? AppColors.success
+                        : (upcoming ? AppColors.inkMuted : look.color),
                     compact: widget.compact,
                   ),
                 ],
