@@ -20,3 +20,7 @@ Future<void> openPrivacyPolicy(BuildContext context) {
 Future<void> openUserAgreement(BuildContext context) {
   return openLegalUrl(context, AppConfig.userAgreementUrl);
 }
+
+Future<void> openIcpQuery(BuildContext context) {
+  return openLegalUrl(context, AppConfig.icpQueryUrl);
+}

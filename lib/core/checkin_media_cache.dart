@@ -1,12 +1,16 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/checkin_media.dart';
 
 /// Local copies of submitted check-in photos/videos, keyed by media id or COS object key.
+///
+/// Files are stored with a real extension (`.jpg` / `.mp4`) so iOS AVPlayer and
+/// image decoders can sniff the container. Legacy extension-less names are still read.
 class CheckinMediaCache {
   CheckinMediaCache._();
 
@@ -41,14 +45,66 @@ class CheckinMediaCache {
     return name;
   }
 
-  static List<String> _names({int mediaId = 0, String objectKey = ''}) {
-    final names = <String>[];
+  static String normalizeExt(String raw) {
+    var ext = raw.trim().toLowerCase();
+    if (ext.isEmpty) return '';
+    if (!ext.startsWith('.')) ext = '.$ext';
+    if (ext == '.jpeg') return '.jpg';
+    if (ext == '.quicktime') return '.mov';
+    return ext;
+  }
+
+  /// Infer a file extension for cache storage / playback.
+  static String inferExt({
+    CheckinMediaKind? kind,
+    String contentType = '',
+    String filename = '',
+    String objectKey = '',
+    String sourcePath = '',
+  }) {
+    for (final candidate in [filename, objectKey, sourcePath]) {
+      final ext = normalizeExt(p.extension(candidate));
+      if (ext.isNotEmpty) return ext;
+    }
+    final ct = contentType.trim().toLowerCase();
+    if (ct.contains('jpeg') || ct.contains('jpg')) return '.jpg';
+    if (ct.contains('png')) return '.png';
+    if (ct.contains('webp')) return '.webp';
+    if (ct.contains('heic') || ct.contains('heif')) return '.jpg';
+    if (ct.contains('mp4') || ct.contains('mpeg')) return '.mp4';
+    if (ct.contains('quicktime') || ct.contains('mov')) return '.mov';
+    if (ct.startsWith('video/')) return '.mp4';
+    if (ct.startsWith('image/')) return '.jpg';
+    if (kind == CheckinMediaKind.video) return '.mp4';
+    if (kind == CheckinMediaKind.image) return '.jpg';
+    return '';
+  }
+
+  static bool _baseHasExt(String base, String ext) {
+    if (ext.isEmpty) return false;
+    return base.toLowerCase().endsWith(ext.toLowerCase());
+  }
+
+  static List<String> _names({
+    int mediaId = 0,
+    String objectKey = '',
+    String ext = '',
+  }) {
+    final normalizedExt = normalizeExt(ext);
+    final bases = <String>[];
     if (mediaId > 0) {
-      names.add('i_$mediaId');
+      bases.add('i_$mediaId');
     }
     final key = objectKey.trim();
     if (key.isNotEmpty) {
-      names.add(_sanitizeKey(key));
+      bases.add(_sanitizeKey(key));
+    }
+    final names = <String>[];
+    for (final base in bases) {
+      if (normalizedExt.isNotEmpty && !_baseHasExt(base, normalizedExt)) {
+        names.add('$base$normalizedExt');
+      }
+      names.add(base); // legacy or already includes extension
     }
     return names;
   }
@@ -60,15 +116,24 @@ class CheckinMediaCache {
   }) {
     final names = <String>[];
     if (mediaId > 0) {
+      names.add('t_i_$mediaId.jpg');
       names.add('t_i_$mediaId');
     }
     final key = objectKey.trim();
     if (key.isNotEmpty) {
-      names.add('t_${_sanitizeKey(key)}');
+      final sk = _sanitizeKey(key);
+      if (!_baseHasExt(sk, '.jpg')) {
+        names.add('t_$sk.jpg');
+      }
+      names.add('t_$sk');
     }
     final path = localPath.trim();
     if (path.isNotEmpty) {
-      names.add('t_${_sanitizeKey(path)}');
+      final sk = _sanitizeKey(path);
+      if (!_baseHasExt(sk, '.jpg')) {
+        names.add('t_$sk.jpg');
+      }
+      names.add('t_$sk');
     }
     return names;
   }
@@ -133,27 +198,88 @@ class CheckinMediaCache {
     }
   }
 
-  static Future<File?> _existingFile({int mediaId = 0, String objectKey = ''}) async {
+  static Future<File?> _existingFile({
+    int mediaId = 0,
+    String objectKey = '',
+    String ext = '',
+  }) async {
     final dir = await _root();
-    for (final name in _names(mediaId: mediaId, objectKey: objectKey)) {
+    for (final name in _names(mediaId: mediaId, objectKey: objectKey, ext: ext)) {
       final file = File(p.join(dir.path, name));
       if (await file.exists() && await file.length() > 0) {
         return file;
       }
     }
+    // Also probe common media extensions when caller did not specify.
+    if (ext.isEmpty && mediaId > 0) {
+      for (final probe in ['.mp4', '.mov', '.jpg', '.png', '.webp']) {
+        final file = File(p.join(dir.path, 'i_$mediaId$probe'));
+        if (await file.exists() && await file.length() > 0) {
+          return file;
+        }
+      }
+    }
     return null;
   }
 
-  static Future<String?> pathFor({int mediaId = 0, String objectKey = ''}) async {
-    final file = await _existingFile(mediaId: mediaId, objectKey: objectKey);
+  static Future<String?> pathFor({
+    int mediaId = 0,
+    String objectKey = '',
+    CheckinMediaKind? kind,
+    String contentType = '',
+    String filename = '',
+  }) async {
+    final ext = inferExt(
+      kind: kind,
+      contentType: contentType,
+      filename: filename,
+      objectKey: objectKey,
+    );
+    final file = await _existingFile(
+      mediaId: mediaId,
+      objectKey: objectKey,
+      ext: ext,
+    );
     return file?.path;
   }
 
-  static Future<Uint8List?> readBytes({int mediaId = 0, String objectKey = ''}) async {
-    final file = await _existingFile(mediaId: mediaId, objectKey: objectKey);
-    if (file == null) return null;
+  /// Ensure [path] has a playable extension for iOS AVPlayer (copy if needed).
+  static Future<String> ensurePlayablePath(
+    String path, {
+    required CheckinMediaKind kind,
+  }) async {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (normalizeExt(p.extension(trimmed)).isNotEmpty) return trimmed;
+    final ext = kind == CheckinMediaKind.video ? '.mp4' : '.jpg';
+    final targetPath = '$trimmed$ext';
+    final src = File(trimmed);
+    final dst = File(targetPath);
+    if (!await src.exists()) return trimmed;
+    if (!await dst.exists() || await dst.length() == 0) {
+      try {
+        await src.copy(targetPath);
+      } catch (e) {
+        debugPrint('CheckinMediaCache.ensurePlayablePath copy failed: $e');
+        return trimmed;
+      }
+    }
+    return targetPath;
+  }
+
+  static Future<Uint8List?> readBytes({
+    int mediaId = 0,
+    String objectKey = '',
+    CheckinMediaKind? kind,
+  }) async {
+    final filePath = await pathFor(
+      mediaId: mediaId,
+      objectKey: objectKey,
+      kind: kind,
+    );
+    if (filePath == null) return null;
     try {
-      return await file.readAsBytes();
+      return await File(filePath).readAsBytes();
     } catch (_) {
       return null;
     }
@@ -163,9 +289,18 @@ class CheckinMediaCache {
     Uint8List bytes, {
     int mediaId = 0,
     String objectKey = '',
+    CheckinMediaKind? kind,
+    String contentType = '',
+    String filename = '',
   }) async {
     if (bytes.isEmpty) return;
-    final names = _names(mediaId: mediaId, objectKey: objectKey);
+    final ext = inferExt(
+      kind: kind,
+      contentType: contentType,
+      filename: filename,
+      objectKey: objectKey,
+    );
+    final names = _names(mediaId: mediaId, objectKey: objectKey, ext: ext);
     if (names.isEmpty) return;
     final dir = await _root();
     await _prune(dir);
@@ -189,10 +324,20 @@ class CheckinMediaCache {
     String sourcePath, {
     int mediaId = 0,
     String objectKey = '',
+    CheckinMediaKind? kind,
+    String contentType = '',
+    String filename = '',
   }) async {
     final src = File(sourcePath);
     if (!await src.exists()) return;
-    final names = _names(mediaId: mediaId, objectKey: objectKey);
+    final ext = inferExt(
+      kind: kind,
+      contentType: contentType,
+      filename: filename.isNotEmpty ? filename : sourcePath,
+      objectKey: objectKey,
+      sourcePath: sourcePath,
+    );
+    final names = _names(mediaId: mediaId, objectKey: objectKey, ext: ext);
     if (names.isEmpty) return;
     final dir = await _root();
     await _prune(dir);
@@ -217,12 +362,26 @@ class CheckinMediaCache {
         : (item.objectKey ?? '');
     final id = item.existingMediaId ?? 0;
     if (item.bytes != null && item.bytes!.isNotEmpty) {
-      await putBytes(item.bytes!, mediaId: id, objectKey: key);
+      await putBytes(
+        item.bytes!,
+        mediaId: id,
+        objectKey: key,
+        kind: item.kind,
+        contentType: item.contentType ?? '',
+        filename: item.filename,
+      );
       return;
     }
     final path = item.filePath?.trim() ?? '';
     if (path.isNotEmpty) {
-      await putFile(path, mediaId: id, objectKey: key);
+      await putFile(
+        path,
+        mediaId: id,
+        objectKey: key,
+        kind: item.kind,
+        contentType: item.contentType ?? '',
+        filename: item.filename,
+      );
     }
   }
 
@@ -237,19 +396,25 @@ class CheckinMediaCache {
       final path = await pathFor(
         mediaId: item.existingMediaId ?? 0,
         objectKey: item.objectKey ?? '',
+        kind: item.kind,
+        contentType: item.contentType ?? '',
+        filename: item.filename,
       );
       if (path == null) {
         out.add(item);
         continue;
       }
+      final playable = item.isVideo
+          ? await ensurePlayablePath(path, kind: CheckinMediaKind.video)
+          : path;
       out.add(
         CheckinMediaItem(
           kind: item.kind,
           filename: item.filename,
           bytes: item.bytes,
-          filePath: path,
+          filePath: playable,
           duration: item.duration,
-          fileSizeBytes: item.fileSizeBytes ?? await File(path).length(),
+          fileSizeBytes: item.fileSizeBytes ?? await File(playable).length(),
           remoteUrl: item.remoteUrl,
           objectKey: item.objectKey,
           contentType: item.contentType,

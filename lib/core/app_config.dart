@@ -58,4 +58,8 @@ class AppConfig {
   static const siteOrigin = 'https://zhiyainfo.com';
   static const privacyPolicyUrl = 'https://zhiyainfo.com/privacy.html';
   static const userAgreementUrl = 'https://zhiyainfo.com/terms.html';
+
+  /// App / 主体 ICP 备案号（小程序号带 -2X，孩子端用主体号）
+  static const icpNumber = '沪ICP备2026036430号-3A';
+  static const icpQueryUrl = 'https://beian.miit.gov.cn/';
 }

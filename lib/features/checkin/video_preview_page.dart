@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
 import '../../core/api_client.dart';
 import '../../core/checkin_media_cache.dart';
 import '../../core/device_layout.dart';
 import '../../core/media_url.dart';
+import '../../models/checkin_media.dart';
 
 class VideoPreviewPage extends StatefulWidget {
   const VideoPreviewPage({
@@ -47,57 +49,109 @@ class _VideoPreviewPageState extends State<VideoPreviewPage> {
   }
 
   Future<void> _init() async {
-    try {
-      final controller = await _createController();
-      await controller.initialize();
-      if (!mounted) {
-        await controller.dispose();
+    final errors = <String>[];
+    for (final builder in _controllerBuilders()) {
+      VideoPlayerController? candidate;
+      try {
+        candidate = await builder();
+        await candidate.initialize();
+        if (!mounted) {
+          await candidate.dispose();
+          return;
+        }
+        candidate.addListener(_onPlaybackTick);
+        await candidate.play();
+        if (!mounted) {
+          await candidate.dispose();
+          return;
+        }
+        setState(() {
+          _controller = candidate;
+          _ready = true;
+          _playing = candidate!.value.isPlaying;
+          _error = null;
+        });
         return;
+      } catch (e, st) {
+        debugPrint('VideoPreviewPage source failed: $e\n$st');
+        errors.add(e.toString());
+        try {
+          await candidate?.dispose();
+        } catch (_) {}
       }
-      controller.addListener(_onPlaybackTick);
-      await controller.play();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      setState(() {
-        _controller = controller;
-        _ready = true;
-        _playing = controller.value.isPlaying;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = '视频加载失败，请检查网络或重新提交该视频');
     }
+    if (!mounted) return;
+    debugPrint('VideoPreviewPage all sources failed: $errors');
+    setState(() => _error = '视频加载失败，请检查网络或重新提交该视频');
   }
 
-  Future<VideoPlayerController> _createController() async {
+  List<Future<VideoPlayerController> Function()> _controllerBuilders() {
+    final builders = <Future<VideoPlayerController> Function()>[];
     final local = widget.filePath?.trim() ?? '';
-    if (local.isNotEmpty && await File(local).exists()) {
-      return VideoPlayerController.file(File(local));
-    }
-
     final id = widget.mediaId ?? 0;
     final key = widget.objectKey?.trim() ?? '';
-    final cached = await CheckinMediaCache.pathFor(mediaId: id, objectKey: key);
-    if (cached != null) {
-      return VideoPlayerController.file(File(cached));
+    final net = widget.networkUrl?.trim() ?? '';
+
+    if (local.isNotEmpty) {
+      builders.add(() => _fileController(local));
     }
+
+    builders.add(() async {
+      final cached = await CheckinMediaCache.pathFor(
+        mediaId: id,
+        objectKey: key,
+        kind: CheckinMediaKind.video,
+      );
+      if (cached == null) {
+        throw StateError('no cache');
+      }
+      return _fileController(cached);
+    });
 
     if (id > 0) {
-      final bytes = await ApiClient().getBytes('/checkins/media/$id/content');
-      await CheckinMediaCache.putBytes(bytes, mediaId: id, objectKey: key);
-      final path = await CheckinMediaCache.pathFor(mediaId: id, objectKey: key);
-      if (path != null) {
-        return VideoPlayerController.file(File(path));
-      }
+      builders.add(() async {
+        final bytes = await ApiClient().getBytes('/checkins/media/$id/content');
+        await CheckinMediaCache.putBytes(
+          bytes,
+          mediaId: id,
+          objectKey: key,
+          kind: CheckinMediaKind.video,
+          filename: 'video.mp4',
+        );
+        final path = await CheckinMediaCache.pathFor(
+          mediaId: id,
+          objectKey: key,
+          kind: CheckinMediaKind.video,
+          filename: 'video.mp4',
+        );
+        if (path == null) {
+          throw StateError('cache write failed');
+        }
+        return _fileController(path);
+      });
     }
 
-    final net = widget.networkUrl?.trim() ?? '';
     if (net.isNotEmpty) {
-      return VideoPlayerController.networkUrl(parseMediaUri(net));
+      builders.add(() async {
+        return VideoPlayerController.networkUrl(parseMediaUri(net));
+      });
     }
-    throw StateError('no video source');
+
+    return builders;
+  }
+
+  Future<VideoPlayerController> _fileController(String path) async {
+    if (!await File(path).exists()) {
+      throw StateError('missing file $path');
+    }
+    var playable = path;
+    if (CheckinMediaCache.normalizeExt(p.extension(path)).isEmpty) {
+      playable = await CheckinMediaCache.ensurePlayablePath(
+        path,
+        kind: CheckinMediaKind.video,
+      );
+    }
+    return VideoPlayerController.file(File(playable));
   }
 
   void _onPlaybackTick() {

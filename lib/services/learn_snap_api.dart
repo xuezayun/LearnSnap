@@ -359,6 +359,9 @@ class LearnSnapApi {
             local[i].bytes!,
             mediaId: id,
             objectKey: key,
+            kind: local[i].kind,
+            contentType: local[i].contentType ?? '',
+            filename: local[i].filename,
           );
         } else {
           final path = local[i].filePath?.trim() ?? '';
@@ -367,6 +370,9 @@ class LearnSnapApi {
               path,
               mediaId: id,
               objectKey: key,
+              kind: local[i].kind,
+              contentType: local[i].contentType ?? '',
+              filename: local[i].filename,
             );
           }
         }

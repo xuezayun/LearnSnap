@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/api_client.dart';
 import '../core/checkin_media_cache.dart';
 import '../core/media_url.dart';
+import '../models/checkin_media.dart';
 import '../theme/app_colors.dart';
 
 /// Loads check-in images from local cache first, then authenticated
@@ -65,7 +66,11 @@ class _RemoteCheckinImageState extends State<RemoteCheckinImage> {
       _filePath = null;
     });
 
-    final cachedPath = await CheckinMediaCache.pathFor(mediaId: id, objectKey: key);
+    final cachedPath = await CheckinMediaCache.pathFor(
+      mediaId: id,
+      objectKey: key,
+      kind: CheckinMediaKind.image,
+    );
     if (!mounted) return;
     if (cachedPath != null) {
       setState(() {
@@ -79,7 +84,13 @@ class _RemoteCheckinImageState extends State<RemoteCheckinImage> {
     if (id > 0) {
       try {
         final bytes = await _api.getBytes('/checkins/media/$id/content');
-        await CheckinMediaCache.putBytes(bytes, mediaId: id, objectKey: key);
+        await CheckinMediaCache.putBytes(
+          bytes,
+          mediaId: id,
+          objectKey: key,
+          kind: CheckinMediaKind.image,
+          filename: 'image.jpg',
+        );
         if (!mounted) return;
         setState(() {
           _bytes = bytes;

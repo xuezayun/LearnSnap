@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
+import '../../core/app_config.dart';
 import '../../core/device_layout.dart';
+import '../../core/legal_links.dart';
 import '../../models/client_version.dart';
 import '../../models/home_snapshot.dart';
 import '../../models/task_list_group.dart';
@@ -18,7 +20,6 @@ import '../checkin/checkin_page.dart';
 import '../checkin/upcoming_checkin_page.dart';
 import '../honor/honor_badge_page.dart';
 import '../report/checkin_report_page.dart';
-import '../review_tools/review_tools_page.dart';
 import 'widgets/all_done_card.dart';
 import 'widgets/empty_tasks_hint.dart';
 import 'widgets/home_greeting.dart';
@@ -282,16 +283,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (mounted) _load(silent: true);
     });
   }
-  void _openReviewTools() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReviewToolsPage(api: _api),
-      ),
-    ).then((_) {
-      if (mounted) _load(silent: true);
-    });
-  }
-
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -378,10 +369,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     onLogout: _showLogoutDialog,
                                     updateInfo: _updateInfo,
                                     onUpdateTap: _onUpdateTap,
-                                    showReviewTools:
-                                        snapshot?.todayBox.reviewToolsEnabled ==
-                                            true,
-                                    onReviewToolsTap: _openReviewTools,
                                   ),
                                   const SizedBox(height: 18),
                                   if (snapshot != null) ...[
@@ -451,6 +438,22 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                             ),
                                       ],
                                     ),
+                                  const SizedBox(height: 28),
+                                  Center(
+                                    child: GestureDetector(
+                                      onTap: () => openIcpQuery(context),
+                                      child: Text(
+                                        AppConfig.icpNumber,
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.nunito(
+                                          fontSize: 11,
+                                          color: AppColors.inkFaint,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
                                 ],
                               ),
                   ),

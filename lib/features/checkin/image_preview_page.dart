@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/checkin_media_cache.dart';
 import '../../core/device_layout.dart';
+import '../../models/checkin_media.dart';
 import '../../widgets/remote_checkin_image.dart';
 
 /// Full-screen image viewer with pinch / double-tap zoom.
@@ -64,7 +65,11 @@ class _ImagePreviewPageState extends State<ImagePreviewPage>
     final id = widget.mediaId ?? 0;
     final key = widget.objectKey?.trim() ?? '';
     try {
-      final cached = await CheckinMediaCache.pathFor(mediaId: id, objectKey: key);
+      final cached = await CheckinMediaCache.pathFor(
+        mediaId: id,
+        objectKey: key,
+        kind: CheckinMediaKind.image,
+      );
       if (!mounted) return;
       if (cached != null) {
         setState(() {
@@ -75,7 +80,13 @@ class _ImagePreviewPageState extends State<ImagePreviewPage>
       }
       if (id > 0) {
         final bytes = await ApiClient().getBytes('/checkins/media/$id/content');
-        await CheckinMediaCache.putBytes(bytes, mediaId: id, objectKey: key);
+        await CheckinMediaCache.putBytes(
+          bytes,
+          mediaId: id,
+          objectKey: key,
+          kind: CheckinMediaKind.image,
+          filename: 'image.jpg',
+        );
         if (!mounted) return;
         setState(() {
           _fetched = bytes;

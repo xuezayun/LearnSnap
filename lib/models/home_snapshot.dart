@@ -37,6 +37,7 @@ class TodayBoxItem {
     this.repeatLabel = '',
     this.nextDueDate = '',
     this.nextDueLabel = '',
+    this.todayPromptText = '',
   });
 
   final int assignmentId;
@@ -58,11 +59,13 @@ class TodayBoxItem {
   final String repeatLabel;
   final String nextDueDate;
   final String nextDueLabel;
+  final String todayPromptText;
 
   bool get isFinalized => submitted && !canRevise;
 
   String get displaySubtitle {
     if (quotaBlocked && !submitted) return '今天次数用完啦';
+    if (!submitted && todayPromptText.isNotEmpty) return todayPromptText;
     if (!submitted && early && dueLabel.isNotEmpty) return dueLabel;
     if (!submitted && nextDueLabel.isNotEmpty) return '到$nextDueLabel再拍';
     if (!submitted) return '拍照就能过关';
@@ -86,6 +89,10 @@ class TodayBoxItem {
       }
     }
     final parentReview = ParentReviewSummary.tryParse(json['parent_review']);
+    String promptText = json['today_prompt_text'] as String? ?? '';
+    if (promptText.isEmpty && json['today_prompt'] is Map) {
+      promptText = (json['today_prompt'] as Map)['text'] as String? ?? '';
+    }
     return TodayBoxItem(
       assignmentId: json['assignment_id'] as int,
       title: json['title'] as String? ?? '习惯任务',
@@ -106,6 +113,7 @@ class TodayBoxItem {
       repeatLabel: json['repeat_label'] as String? ?? '',
       nextDueDate: json['next_due_date'] as String? ?? '',
       nextDueLabel: json['next_due_label'] as String? ?? '',
+      todayPromptText: promptText,
     );
   }
 
