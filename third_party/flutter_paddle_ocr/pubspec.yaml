@@ -1,0 +1,33 @@
+name: flutter_paddle_ocr
+description: "On-device OCR for Flutter, powered by PaddleOCR + Paddle Lite (Android/iOS) and paddleocr-js (web)."
+version: 0.0.2
+homepage: https://github.com/phanbaohuy96/flutter-paddle-ocr
+
+environment:
+  sdk: ^3.10.8
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+  web: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.huyphan.flutter_paddle_ocr
+        pluginClass: FlutterPaddleOcrPlugin
+      ios:
+        pluginClass: FlutterPaddleOcrPlugin
+      web:
+        pluginClass: FlutterPaddleOcrWeb
+        fileName: flutter_paddle_ocr_web.dart

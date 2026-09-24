@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_paddle_ocr/flutter_paddle_ocr.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/checkin_media_prepare.dart';
 import 'dictation_words.dart';
 
 const _modelNames = ['det_db.nb', 'rec_crnn.nb', 'cls.nb', 'ppocr_keys_v1.txt'];
@@ -17,7 +19,8 @@ Future<List<DictationWord>> recognizeDictationWords({
   required DictationLang lang,
 }) async {
   final engine = await _ocrEngine();
-  final bytes = await File(path).readAsBytes();
+  final raw = await File(path).readAsBytes();
+  final bytes = await _bytesForOcr(raw);
   final lines = await engine.recognize(
     bytes,
     maxSideLen: 1600,
@@ -35,6 +38,33 @@ Future<List<DictationWord>> recognizeDictationWords({
     }
   }
   return sortReadingOrder(found);
+}
+
+bool _isPng(Uint8List bytes) {
+  return bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4E &&
+      bytes[3] == 0x47;
+}
+
+/// iPhone 相机常给出 HEIC。OpenCV 解不开时直接返回空结果，这里先转成 PNG。
+Future<Uint8List> _bytesForOcr(Uint8List bytes) async {
+  if (!Platform.isIOS || isJpegBytes(bytes) || _isPng(bytes)) return bytes;
+  final codec = await ui.instantiateImageCodec(bytes);
+  try {
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null || data.lengthInBytes == 0) return bytes;
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    codec.dispose();
+  }
 }
 
 Future<PaddleOcr> _ocrEngine() {

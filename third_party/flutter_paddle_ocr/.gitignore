@@ -1,0 +1,5 @@
+android/.cxx/
+android/cache/
+android/OpenCV/
+android/PaddleLite/
+ios/Frameworks/
