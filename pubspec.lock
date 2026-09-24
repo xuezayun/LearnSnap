@@ -270,14 +270,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.0.0"
-  flutter_paddle_ocr:
-    dependency: "direct main"
-    description:
-      name: flutter_paddle_ocr
-      sha256: "6d189316529a7cf9d138ba2d33aad18fb5d1d7ede246173b4e7cf10249b8ce1f"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.0.2"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -608,6 +600,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "3.2.1"
+  paddle_ocr_flutter:
+    dependency: "direct main"
+    description:
+      name: paddle_ocr_flutter
+      sha256: dc90e1d6c030de5ba87f58c8314f0fdb440e4e4a9f8612b5e728e268e9ad5bea
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.0.3"
   path:
     dependency: "direct main"
     description:

@@ -26,7 +26,7 @@ dependencies:
   shared_preferences: ^2.5.3
   google_fonts: ^8.1.0
   video_compress: ^3.1.4
-  flutter_paddle_ocr: ^0.0.2
+  paddle_ocr_flutter: ^0.0.3
   flutter_tts: ^4.2.2
 
 dev_dependencies:
@@ -56,4 +56,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/honor/
-    - assets/ocr/

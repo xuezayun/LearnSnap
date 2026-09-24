@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app/core/device_layout.dart';
 import 'package:app/features/bind/bind_page.dart';
+import 'package:app/features/privacy/privacy_consent_page.dart';
 
 void main() {
   Future<void> setPhoneSize(WidgetTester tester) async {
@@ -78,7 +79,27 @@ void main() {
         home: BindPage(onBound: () {}),
       ),
     );
-    expect(find.text('绑定设备'), findsOneWidget);
-    expect(find.text('绑定并开始'), findsOneWidget);
+    expect(find.textContaining('暗号'), findsWidgets);
+    expect(find.text('开始探险'), findsOneWidget);
+    expect(find.text('隐私政策'), findsOneWidget);
+  });
+
+  testWidgets('privacy consent dialog has 同意 and 拒绝', (tester) async {
+    var agreed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PrivacyConsentPage(
+          onAgree: () async {
+            agreed = true;
+          },
+        ),
+      ),
+    );
+    expect(find.text('同意'), findsOneWidget);
+    expect(find.text('拒绝'), findsOneWidget);
+    expect(find.textContaining('隐私政策'), findsWidgets);
+    await tester.tap(find.text('同意'));
+    await tester.pump();
+    expect(agreed, isTrue);
   });
 }

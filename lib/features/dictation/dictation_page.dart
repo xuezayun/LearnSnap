@@ -53,13 +53,11 @@ class _DictationPageState extends State<DictationPage> {
     try {
       final harmony = await HarmonyOs.isHarmonyOs();
       if (!mounted) return;
-      // iOS camera "Use Photo" crashes inside image_picker when it scales
-      // the shot. Skip scaling here and let OCR resize the image.
-      final skipResize = harmony || Platform.isIOS;
+      final skipCompress = harmony || Platform.isIOS;
       final photo = await _picker.pickImage(
         source: source,
-        imageQuality: skipResize ? null : 92,
-        maxWidth: skipResize ? null : 2400,
+        imageQuality: skipCompress ? null : 92,
+        maxWidth: skipCompress ? null : 2400,
       );
       if (photo == null || !mounted) return;
       final path = await _keepLocal(photo);

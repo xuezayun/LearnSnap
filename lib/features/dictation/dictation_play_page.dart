@@ -29,6 +29,7 @@ class DictationPlayPage extends StatefulWidget {
 
 class _DictationPlayPageState extends State<DictationPlayPage> {
   final _tts = FlutterTts();
+  final _listController = ScrollController();
   var _ready = false;
   var _playing = false;
   var _showText = false;
@@ -61,6 +62,7 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
   void dispose() {
     _token += 1;
     _tts.stop();
+    _listController.dispose();
     super.dispose();
   }
 
@@ -112,6 +114,7 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
         _repeat = 0;
         _gapLeft = 0;
       });
+      _revealCurrent();
       for (var round = 0; round < widget.repeats; round++) {
         if (!mounted || token != _token) return;
         setState(() => _repeat = round + 1);
@@ -150,6 +153,22 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
     });
   }
 
+  void _revealCurrent() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_listController.hasClients) return;
+      const extent = 64.0;
+      final target = _index * extent;
+      final position = _listController.position;
+      final next = target.clamp(0.0, position.maxScrollExtent);
+      if ((position.pixels - next).abs() < 8) return;
+      _listController.animateTo(
+        next,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = widget.words.length;
@@ -168,17 +187,30 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
       body: AppScaffoldBackground(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   total == 0 ? '没有词语' : '第 ${_index + 1} / $total 个',
+                  textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w800,
                     color: AppColors.inkMuted,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 8),
+                if (total > 0)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: ((_index + (_playing ? 0.35 : 1)) / total).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      backgroundColor: AppColors.brandSoft,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                const SizedBox(height: 12),
                 if (_error != null)
                   Text(
                     _error!,
@@ -189,39 +221,125 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
                       height: 1.4,
                     ),
                   )
-                else if (_showText)
-                  Text(
-                    word,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.nunito(
-                      fontSize: 56,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.brandDeep,
-                      height: 1.2,
-                    ),
-                  )
                 else
                   Text(
-                    _gapLeft > 0 ? '写下刚才的词\n$_gapLeft' : '听，先不要看',
+                    _showText
+                        ? (word.isEmpty ? ' ' : word)
+                        : (_gapLeft > 0 ? '写下刚才的词  $_gapLeft' : '听，先不要看'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.nunito(
-                      fontSize: 36,
+                      fontSize: _showText ? 40 : 28,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.ink,
-                      height: 1.3,
+                      color: _showText ? AppColors.brandDeep : AppColors.ink,
+                      height: 1.2,
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
                 Text(
                   _playing
-                      ? (_gapLeft > 0 ? '间隔中' : '第 $_repeat / ${widget.repeats} 遍')
-                      : (done ? '这一列读完了' : '已暂停'),
+                      ? (_gapLeft > 0 ? '间隔中，点下面的词可以从那里重读' : '第 $_repeat / ${widget.repeats} 遍')
+                      : (done ? '这一列读完了，点词可以再从那里读' : '已暂停，点词可以从那里开始'),
+                  textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkMuted,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 12),
+                Text(
+                  '词语列表',
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.brandDeep,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: total == 0
+                      ? const SizedBox.shrink()
+                      : ListView.builder(
+                          controller: _listController,
+                          itemExtent: 64,
+                          itemCount: total,
+                          itemBuilder: (context, i) {
+                            final current = i == _index;
+                            final passed = i < _index || (done && i == _index);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: current
+                                    ? const Color(0xFFFFF1E4)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  onTap: !_ready ? null : () => _jump(i),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: current
+                                            ? const Color(0xFFFF9A3C)
+                                            : AppColors.brandSoft,
+                                        width: current ? 2 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 28,
+                                          child: Text(
+                                            '${i + 1}',
+                                            style: GoogleFonts.nunito(
+                                              fontWeight: FontWeight.w800,
+                                              color: current
+                                                  ? const Color(0xFF5A3A00)
+                                                  : AppColors.inkFaint,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            widget.words[i],
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.nunito(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w800,
+                                              color: passed && !current
+                                                  ? AppColors.inkMuted
+                                                  : AppColors.ink,
+                                            ),
+                                          ),
+                                        ),
+                                        if (current)
+                                          Text(
+                                            _playing
+                                                ? (_gapLeft > 0 ? '间隔' : '正在听')
+                                                : (done ? '读完' : '暂停'),
+                                            style: GoogleFonts.nunito(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFF5A3A00),
+                                            ),
+                                          )
+                                        else if (passed)
+                                          const Icon(
+                                            Icons.check_rounded,
+                                            size: 18,
+                                            color: AppColors.success,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

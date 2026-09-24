@@ -517,7 +517,7 @@ class _WordChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12, right: 12),
+      padding: const EdgeInsets.only(top: 10, right: 10),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -538,24 +538,30 @@ class _WordChip extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: -14,
-            right: -14,
+            top: -8,
+            right: -8,
             child: GestureDetector(
               onTap: onDelete,
               behavior: HitTestBehavior.opaque,
-              child: const SizedBox(
-                width: 44,
-                height: 44,
-                child: Center(
-                  child: Text(
-                    'X',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF5A3A00), width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
                     ),
-                  ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Color(0xFF3A2A14),
                 ),
               ),
             ),
