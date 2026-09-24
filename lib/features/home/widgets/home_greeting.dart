@@ -42,7 +42,7 @@ class HomeGreeting extends StatelessWidget {
             height: 1.2,
           ),
         ),
-        if (badge != null) ...[
+        if (badge != null && badge.display.isNotEmpty) ...[
           const SizedBox(height: 8),
           HonorBadgeStrip(
             badge: badge,
@@ -50,15 +50,6 @@ class HomeGreeting extends StatelessWidget {
             onTap: onHonorTap,
           ),
         ],
-        const SizedBox(height: 6),
-        Text(
-          '今天也来拍一个小胜利吧',
-          style: GoogleFonts.nunito(
-            fontSize: tablet ? 16 : 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkMuted,
-          ),
-        ),
       ],
     );
   }

@@ -1,7 +1,7 @@
 name: app
 description: "拍习惯：家庭习惯打卡"
 publish_to: 'none'
-version: 1.2.0+4
+version: 1.3.0+5
 
 environment:
   sdk: ^3.10.8
@@ -26,6 +26,8 @@ dependencies:
   shared_preferences: ^2.5.3
   google_fonts: ^8.1.0
   video_compress: ^3.1.4
+  flutter_paddle_ocr: ^0.0.2
+  flutter_tts: ^4.2.2
 
 dev_dependencies:
   flutter_test:
@@ -54,3 +56,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/honor/
+    - assets/ocr/

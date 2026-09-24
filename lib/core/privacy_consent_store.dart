@@ -7,7 +7,7 @@ class PrivacyConsentStore {
   final SharedPreferences? _prefsOverride;
 
   /// 政策更新时递增，已同意旧版本的用户会再看一次弹窗。
-  static const policyVersion = 1;
+  static const policyVersion = 2;
   static const agreedVersionKey = 'privacy_consent_version';
 
   Future<SharedPreferences> _prefs() async {

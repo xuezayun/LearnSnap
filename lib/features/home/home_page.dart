@@ -20,11 +20,13 @@ import '../checkin/checkin_page.dart';
 import '../checkin/upcoming_checkin_page.dart';
 import '../honor/honor_badge_page.dart';
 import '../report/checkin_report_page.dart';
+import '../toolbox/toolbox_page.dart';
 import 'widgets/all_done_card.dart';
 import 'widgets/empty_tasks_hint.dart';
 import 'widgets/home_greeting.dart';
 import 'widgets/home_top_bar.dart';
 import 'widgets/section_header.dart';
+import 'widgets/toolbox_entry.dart';
 import 'widgets/today_progress_panel.dart';
 import 'widgets/treasure_box.dart';
 
@@ -270,6 +272,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
+  void _openToolbox() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ToolboxPage(),
+      ),
+    );
+  }
+
   void _openHonorBadge() {
     final badge = _snapshot?.todayBox.honorBadge;
     Navigator.of(context).push(
@@ -322,7 +332,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         boxes.any((b) => !b.submitted || (b.canRevise && b.checkinStatus == 'rejected'));
     final total = snapshot?.todayBox.total ?? 0;
     final completed = snapshot?.todayBox.completed ?? 0;
-    final progress = total == 0 ? 0.0 : completed / total;
     final allDone = total > 0 && !hasActionable;
 
     return Scaffold(
@@ -370,7 +379,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     updateInfo: _updateInfo,
                                     onUpdateTap: _onUpdateTap,
                                   ),
-                                  const SizedBox(height: 18),
+                                  const SizedBox(height: 12),
                                   if (snapshot != null) ...[
                                     HomeGreeting(
                                       nickname: snapshot.todayBox.nickname,
@@ -378,9 +387,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                       honorBadge: snapshot.todayBox.honorBadge,
                                       onHonorTap: _openHonorBadge,
                                     ),
-                                    const SizedBox(height: 18),
+                                    const SizedBox(height: 8),
+                                    ToolboxEntry(onTap: _openToolbox),
+                                    const SizedBox(height: 12),
                                     TodayProgressPanel(
-                                      progress: progress,
                                       completed: completed,
                                       total: total,
                                       streak: snapshot.todayBox.streak,
@@ -396,12 +406,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     ),
                                   ],
                                   if (allDone) ...[
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 12),
                                     AllDoneCard(
                                       streak: snapshot?.todayBox.streak ?? 0,
                                     ),
                                   ],
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 8),
                                   if (boxes.isEmpty)
                                     const EmptyTasksHint()
                                   else
