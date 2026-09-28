@@ -37,7 +37,7 @@ class ToolboxEntry extends StatelessWidget {
                 ),
               ),
               Text(
-                '拍照听写',
+                '听写 · 听算 · 错题',
                 style: GoogleFonts.nunito(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

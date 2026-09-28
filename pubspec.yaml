@@ -1,7 +1,7 @@
 name: app
 description: "拍习惯：家庭习惯打卡"
 publish_to: 'none'
-version: 1.4.0+6
+version: 1.5.0+7
 
 environment:
   sdk: ^3.10.8
@@ -28,6 +28,8 @@ dependencies:
   video_compress: ^3.1.4
   paddle_ocr_flutter: ^0.0.3
   flutter_tts: ^4.2.2
+  image: ^4.5.4
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
@@ -47,7 +49,6 @@ flutter_launcher_icons:
   image_path_ios_dark_transparent: assets/icon/app_icon_ios.png
   adaptive_icon_background: "#2EC4B6"
   adaptive_icon_foreground: assets/icon/app_icon.png
-  # 与 iOS 预留边一致：Android 8+ 桌面图标默认 inset 16%
   adaptive_icon_foreground_inset: 16
   remove_alpha_ios: true
   background_color_ios: "#2EC4B6"

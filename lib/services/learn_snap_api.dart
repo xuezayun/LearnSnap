@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/api_client.dart';
+import '../core/media_url.dart';
 import '../core/checkin_media_cache.dart';
 import '../core/cos_uploader.dart';
 import '../core/device_info_collector.dart';
@@ -380,6 +383,81 @@ class LearnSnapApi {
     } catch (_) {
       // cache alias is best-effort
     }
+  }
+
+  Future<Map<String, dynamic>> syncWrongItems({
+    required int childId,
+    required String? since,
+    required List<Map<String, dynamic>> upserts,
+  }) {
+    return _client.post(
+      '/children/$childId/wrong-items/sync',
+      data: {
+        'since': since,
+        'upserts': upserts,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> presignWrongImage(int childId) {
+    return _client.post('/children/$childId/wrong-items/presign');
+  }
+
+  Future<String> uploadWrongImage({
+    required int childId,
+    required String path,
+  }) async {
+    final presign = await presignWrongImage(childId);
+    if (presign['mode'] == 'put') {
+      final putUrl = presign['put_url'] as String? ?? '';
+      final objectKey = presign['object_key'] as String? ?? '';
+      if (putUrl.isEmpty || objectKey.isEmpty) {
+        throw ApiException('照片上传还没准备好');
+      }
+      final bytes = await File(path).readAsBytes();
+      await _client.dio.put<dynamic>(
+        sanitizeMediaUrl(putUrl),
+        data: bytes,
+        options: Options(
+          headers: {
+            'Content-Type': 'image/jpeg',
+            Headers.contentLengthHeader: bytes.length,
+          },
+        ),
+      );
+      return objectKey;
+    }
+    final data = await _client.postMultipart(
+      '/children/$childId/wrong-items/media',
+      FormData.fromMap({
+        'file': await MultipartFile.fromFile(path, filename: 'wrong.jpg'),
+      }),
+    );
+    return data['object_key'] as String? ?? '';
+  }
+
+  Future<Uint8List> downloadWrongImage({
+    required int childId,
+    required String clientUuid,
+  }) {
+    return _client.getBytes('/children/$childId/wrong-items/$clientUuid/image');
+  }
+
+  Future<Uint8List> downloadWrongBookPdf({
+    required int childId,
+    String? subject,
+    String? start,
+    String? end,
+  }) {
+    final query = <String, String>{};
+    if (subject != null && subject.isNotEmpty) query['subject'] = subject;
+    if (start != null && start.isNotEmpty) query['start'] = start;
+    if (end != null && end.isNotEmpty) query['end'] = end;
+    final suffix = query.entries
+        .map((entry) => '${entry.key}=${Uri.encodeQueryComponent(entry.value)}')
+        .join('&');
+    final path = '/children/$childId/wrong-items/print.pdf';
+    return _client.getBytes(suffix.isEmpty ? path : '$path?$suffix');
   }
 
   int _readInt(dynamic value) {
