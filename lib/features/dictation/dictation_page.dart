@@ -11,6 +11,7 @@ import '../../core/harmony_os.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import 'dictation_ocr.dart';
+import 'dictation_region_page.dart';
 import 'dictation_select_page.dart';
 import 'dictation_settings.dart';
 import 'dictation_words.dart';
@@ -26,7 +27,8 @@ class _DictationPageState extends State<DictationPage> {
   final _picker = ImagePicker();
   final _settingsStore = DictationSettingsStore();
   DictationSettings _settings = const DictationSettings();
-  bool _busy = false;
+  bool _picking = false;
+  bool _recognizing = false;
 
   @override
   void initState() {
@@ -48,8 +50,8 @@ class _DictationPageState extends State<DictationPage> {
   }
 
   Future<void> _pick(ImageSource source) async {
-    if (_busy) return;
-    setState(() => _busy = true);
+    if (_picking) return;
+    setState(() => _picking = true);
     try {
       final harmony = await HarmonyOs.isHarmonyOs();
       if (!mounted) return;
@@ -62,12 +64,20 @@ class _DictationPageState extends State<DictationPage> {
       if (photo == null || !mounted) return;
       final path = await _keepLocal(photo);
       if (!mounted) return;
-      final words = await recognizeDictationWords(path: path, lang: _lang);
+      final regionPath = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => DictationRegionPage(imagePath: path),
+        ),
+      );
+      if (regionPath == null || !mounted) return;
+      setState(() => _recognizing = true);
+      final words = await recognizeDictationWords(path: regionPath, lang: _lang);
       if (!mounted) return;
+      setState(() => _recognizing = false);
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => DictationSelectPage(
-            imagePath: path,
+            imagePath: regionPath,
             words: words,
             lang: _lang,
             initialSettings: _settings,
@@ -80,7 +90,12 @@ class _DictationPageState extends State<DictationPage> {
         SnackBar(content: Text(_message(error))),
       );
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _picking = false;
+          _recognizing = false;
+        });
+      }
     }
   }
 
@@ -125,7 +140,7 @@ class _DictationPageState extends State<DictationPage> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             children: [
               Text(
-                '拍一张词语表，点选或圈出要听的词，再按间隔和语速读出来。',
+                '拍一张词语表，先框出要听的区域再识别，然后点选词语读出来。',
                 style: GoogleFonts.nunito(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -133,16 +148,16 @@ class _DictationPageState extends State<DictationPage> {
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                '照片只留在这台设备上，不会上传，也不批改对错。印刷体更准。',
-                style: GoogleFonts.nunito(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkMuted,
-                  height: 1.4,
-                ),
-              ),
+              // const SizedBox(height: 8),
+              // Text(
+              //   '照片只留在这台设备上，不会上传，也不批改对错。印刷体更准。',
+              //   style: GoogleFonts.nunito(
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.w600,
+              //     color: AppColors.inkMuted,
+              //     height: 1.4,
+              //   ),
+              // ),
               const SizedBox(height: 22),
               Text(
                 '词语语言',
@@ -157,29 +172,29 @@ class _DictationPageState extends State<DictationPage> {
                   _LangChip(
                     label: '语文',
                     selected: !english,
-                    onTap: _busy ? null : () => _setLang(DictationLangPref.chinese),
+                    onTap: _picking ? null : () => _setLang(DictationLangPref.chinese),
                   ),
                   const SizedBox(width: 10),
                   _LangChip(
                     label: '英语',
                     selected: english,
-                    onTap: _busy ? null : () => _setLang(DictationLangPref.english),
+                    onTap: _picking ? null : () => _setLang(DictationLangPref.english),
                   ),
                 ],
               ),
               const SizedBox(height: 28),
               FilledButton.icon(
-                onPressed: _busy ? null : () => _pick(ImageSource.camera),
+                onPressed: _picking ? null : () => _pick(ImageSource.camera),
                 icon: const Icon(Icons.photo_camera_rounded),
                 label: const Text('拍照'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: _busy ? null : () => _pick(ImageSource.gallery),
+                onPressed: _picking ? null : () => _pick(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library_outlined),
                 label: const Text('从相册选择'),
               ),
-              if (_busy) ...[
+              if (_recognizing) ...[
                 const SizedBox(height: 28),
                 const Center(child: CircularProgressIndicator()),
                 const SizedBox(height: 10),

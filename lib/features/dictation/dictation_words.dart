@@ -33,7 +33,11 @@ class DictationWord {
   }
 }
 
-final _splitter = RegExp(r'[\s,，、;；。.!！?？:：/／|]+');
+/// ASCII whitespace plus the spaces OCR often emits for a printed gap,
+/// including the full-width space used between Chinese words.
+final _splitter = RegExp(
+  r'[\s\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF,，、;；。.!！?？:：/／|]+',
+);
 final _cjk = RegExp(r'[\u4e00-\u9fff]');
 final _latin = RegExp(r'[A-Za-z]');
 
@@ -64,6 +68,85 @@ List<DictationPiece> splitLine(String raw, Rect rect) {
     x += width;
   }
   return pieces;
+}
+
+/// Splits one recognized token where [gapFractions] mark word spaces along
+/// [rect]. Fractions are 0–1 from the left. A sentence with no gaps stays whole.
+List<DictationPiece> splitByGaps(String text, Rect rect, List<double> gapFractions) {
+  final token = text.trim();
+  if (token.length < 2 || rect.width <= 0 || rect.height <= 0) {
+    return token.isEmpty ? const [] : [DictationPiece(token, rect)];
+  }
+  final cuts = gapFractions.where((gap) => gap > 0.04 && gap < 0.96).toList()..sort();
+  while (cuts.length >= token.length && cuts.isNotEmpty) {
+    cuts.removeLast();
+  }
+  if (cuts.isEmpty) return [DictationPiece(token, rect)];
+  final bounds = [0.0, ...cuts, 1.0];
+  final pieces = <DictationPiece>[];
+  var startChar = 0;
+  for (var i = 0; i < bounds.length - 1; i++) {
+    final isLast = i == bounds.length - 2;
+    final remainingSegments = bounds.length - 2 - i;
+    final endChar = isLast
+        ? token.length
+        : (bounds[i + 1] * token.length).round().clamp(startChar + 1, token.length - remainingSegments);
+    final part = token.substring(startChar, endChar).trim();
+    if (part.isNotEmpty) {
+      pieces.add(
+        DictationPiece(
+          part,
+          Rect.fromLTRB(
+            rect.left + bounds[i] * rect.width,
+            rect.top,
+            rect.left + bounds[i + 1] * rect.width,
+            rect.bottom,
+          ),
+        ),
+      );
+    }
+    startChar = endChar;
+  }
+  return pieces.isEmpty ? [DictationPiece(token, rect)] : pieces;
+}
+
+/// Word-space positions along a text line, as fractions of [ink]'s length.
+/// [ink] is the dark-pixel count of each column. Narrow letter spacing stays
+/// inside a word; a wider column of white, even a small printed space, splits.
+List<double> gapFractionsFromInk({
+  required List<int> ink,
+  required int height,
+  required int charCount,
+}) {
+  if (ink.length < 8 || height < 8 || charCount < 2) return const [];
+  final minInk = math.max(1, (height * 0.08).round());
+  final gaps = <({int start, int end})>[];
+  var index = 0;
+  while (index < ink.length) {
+    if (ink[index] >= minInk) {
+      index += 1;
+      continue;
+    }
+    final start = index;
+    while (index < ink.length && ink[index] < minInk) {
+      index += 1;
+    }
+    if (start > 1 && index < ink.length - 1) {
+      gaps.add((start: start, end: index));
+    }
+  }
+  if (gaps.isEmpty) return const [];
+  final charWidth = ink.length / charCount;
+  final small = [
+    for (final gap in gaps)
+      if ((gap.end - gap.start) < charWidth * 0.2) gap.end - gap.start,
+  ]..sort();
+  final letterGap = small.isEmpty ? 0.0 : small[small.length ~/ 2] * 1.8;
+  final threshold = math.max(4.0, math.max(charWidth * 0.22, math.max(height * 0.10, letterGap)));
+  return [
+    for (final gap in gaps)
+      if ((gap.end - gap.start) >= threshold) (gap.start + gap.end) / 2 / ink.length,
+  ];
 }
 
 int compareReadingOrder(DictationWord a, DictationWord b) {

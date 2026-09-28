@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:paddle_ocr_flutter/paddle_ocr_flutter.dart';
 
 import 'dictation_words.dart';
@@ -20,6 +22,7 @@ Future<List<DictationWord>> recognizeDictationWords({
   }
   await _ensureAndroidOcr();
   final lines = await _androidOcr.recognize(path, maxSizeLen: 1600);
+  final photo = img.decodeImage(bytes);
   final found = <DictationWord>[];
   var index = 0;
   for (final line in lines) {
@@ -27,13 +30,42 @@ Future<List<DictationWord>> recognizeDictationWords({
     final rect = rectFromPoints([
       for (final point in line.points) Offset(point.x.toDouble(), point.y.toDouble()),
     ]);
-    for (final piece in splitLine(line.text, rect)) {
+    for (final piece in _piecesForLine(line.text, rect, photo)) {
       if (!keepToken(piece.text, lang)) continue;
       found.add(DictationWord(id: 'w$index', text: piece.text, rect: piece.rect));
       index += 1;
     }
   }
   return sortReadingOrder(found);
+}
+
+List<DictationPiece> _piecesForLine(String text, Rect rect, img.Image? photo) {
+  final pieces = splitLine(text, rect);
+  if (pieces.length != 1 || photo == null) return pieces;
+  final only = pieces.first;
+  final gaps = gapFractionsFromInk(
+    ink: _columnInk(photo, only.rect),
+    height: only.rect.height.round(),
+    charCount: only.text.runes.length,
+  );
+  if (gaps.isEmpty) return pieces;
+  return splitByGaps(only.text, only.rect, gaps);
+}
+
+List<int> _columnInk(img.Image image, Rect rect) {
+  final left = rect.left.round().clamp(0, math.max(0, image.width - 1)).toInt();
+  final top = rect.top.round().clamp(0, math.max(0, image.height - 1)).toInt();
+  final right = rect.right.round().clamp(left + 1, image.width).toInt();
+  final bottom = rect.bottom.round().clamp(top + 1, image.height).toInt();
+  final ink = List<int>.filled(math.max(0, right - left), 0);
+  for (var y = top; y < bottom; y++) {
+    for (var x = left; x < right; x++) {
+      if (image.getPixel(x, y).luminance < 0.72) {
+        ink[x - left] += 1;
+      }
+    }
+  }
+  return ink;
 }
 
 Future<void> _ensureAndroidOcr() {
