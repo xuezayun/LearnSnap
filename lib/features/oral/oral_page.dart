@@ -44,10 +44,18 @@ class _OralPageState extends State<OralPage> {
     _update(_settings.copyWith(ops: next));
   }
 
+  void _setGrade(OralGrade grade) {
+    final ops = _settings.ops.where(grade.allowedOps.contains).toSet();
+    _update(_settings.copyWith(
+      grade: grade,
+      ops: ops.isEmpty ? grade.allowedOps : ops,
+    ));
+  }
+
   void _start() {
     final problems = buildOralProblems(
       ops: _settings.ops,
-      within: _settings.within,
+      grade: _settings.grade,
       count: _settings.count,
     );
     Navigator.of(context).push(
@@ -57,6 +65,7 @@ class _OralPageState extends State<OralPage> {
           repeats: _settings.repeats,
           gapSeconds: _settings.gapSeconds,
           pace: _settings.pace,
+          grade: _settings.grade.number,
         ),
       ),
     );
@@ -64,7 +73,7 @@ class _OralPageState extends State<OralPage> {
 
   @override
   Widget build(BuildContext context) {
-    final arithmetic = _settings.ops.contains(OralOp.add) || _settings.ops.contains(OralOp.sub);
+    final allowed = _settings.grade.allowedOps;
     return Scaffold(
       appBar: AppBar(title: const Text('听算')),
       body: AppScaffoldBackground(
@@ -82,12 +91,28 @@ class _OralPageState extends State<OralPage> {
                 ),
               ),
               const SizedBox(height: 18),
+              const _Label('难度'),
+              _ChoiceRow(
+                labels: [for (final grade in OralGrade.values) grade.label],
+                values: [for (final grade in OralGrade.values) grade.number],
+                selected: _settings.grade.number,
+                onSelected: (value) => _setGrade(OralGrade.fromNumber(value)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _gradeHint(_settings.grade),
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkMuted,
+                ),
+              ),
+              const SizedBox(height: 18),
               const _Label('运算'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final op in OralOp.values)
+                  for (final op in OralOp.values.where(allowed.contains))
                     FilterChip(
                       label: Text(_opLabel(op)),
                       selected: _settings.ops.contains(op),
@@ -101,26 +126,6 @@ class _OralPageState extends State<OralPage> {
                     ),
                 ],
               ),
-              if (arithmetic) ...[
-                const SizedBox(height: 18),
-                const _Label('加减范围'),
-                _ChoiceRow(
-                  labels: const ['10以内', '20以内', '100以内'],
-                  values: const [10, 20, 100],
-                  selected: _settings.within,
-                  onSelected: (value) => _update(_settings.copyWith(within: value)),
-                ),
-              ],
-              if (_settings.ops.contains(OralOp.mul) || _settings.ops.contains(OralOp.div)) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '乘除用九九乘法口诀。',
-                  style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkMuted,
-                  ),
-                ),
-              ],
               const SizedBox(height: 18),
               const _Label('题数'),
               _ChoiceRow(
@@ -132,8 +137,8 @@ class _OralPageState extends State<OralPage> {
               const SizedBox(height: 18),
               const _Label('每题间隔'),
               _ChoiceRow(
-                labels: const ['5秒', '8秒', '10秒', '15秒'],
-                values: const [5, 8, 10, 15],
+                labels: const ['5秒', '8秒', '10秒'],
+                values: const [5, 8, 10],
                 selected: _settings.gapSeconds,
                 onSelected: (value) => _update(_settings.copyWith(gapSeconds: value)),
               ),
@@ -167,6 +172,14 @@ class _OralPageState extends State<OralPage> {
     );
   }
 }
+
+String _gradeHint(OralGrade grade) => switch (grade) {
+      OralGrade.one => '20以内的加减。',
+      OralGrade.two => '100以内的加减，乘除用九九口诀。',
+      OralGrade.three => '100以内的加减，乘除多一些，仍用九九口诀。',
+      OralGrade.four => '两位数乘一位数，三位数除以一位数。加减仍在100以内。',
+      OralGrade.five => '一位小数的加减，每个数不超过10。',
+    };
 
 String _opLabel(OralOp op) => switch (op) {
       OralOp.add => '加法',

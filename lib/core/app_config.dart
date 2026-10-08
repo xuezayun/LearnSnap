@@ -18,8 +18,8 @@ class AppConfig {
     defaultValue: '',
   );
 
-  // static const _devApiBaseUrl = 'http://10.0.2.2:8000/api/v1';
-  static const _devApiBaseUrl = 'http://localhost:8000/api/v1';
+  static const _devApiBaseUrl = 'http://10.0.2.2:8000/api/v1';
+  // static const _devApiBaseUrl = 'http://localhost:8000/api/v1';
   static const _prodApiBaseUrl = 'https://zhiyainfo.com/api/v1';
 
   static bool _loggedApiBaseUrl = false;

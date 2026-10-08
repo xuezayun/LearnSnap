@@ -1,7 +1,7 @@
 name: app
 description: "拍习惯：家庭习惯打卡"
 publish_to: 'none'
-version: 1.5.0+8
+version: 1.6.0+9
 
 environment:
   sdk: ^3.10.8

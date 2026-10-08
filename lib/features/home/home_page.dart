@@ -18,6 +18,8 @@ import '../checkin/checkin_detail_page.dart';
 import '../checkin/checkin_history_page.dart';
 import '../checkin/checkin_page.dart';
 import '../checkin/upcoming_checkin_page.dart';
+import '../homework/homework_entry.dart';
+import '../homework/homework_page.dart';
 import '../honor/honor_badge_page.dart';
 import '../report/checkin_report_page.dart';
 import '../toolbox/toolbox_page.dart';
@@ -170,6 +172,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _openHomework() async {
+    final childId = _childId;
+    if (childId == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => HomeworkPage(api: _api, childId: childId),
+      ),
+    );
   }
 
   Future<void> _openCheckin(TodayBoxItem box, {bool revise = false}) async {
@@ -410,6 +422,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                     AllDoneCard(
                                       streak: snapshot?.todayBox.streak ?? 0,
                                     ),
+                                  ],
+                                  if (snapshot != null) ...[
+                                    const SizedBox(height: 12),
+                                    HomeworkEntry(onTap: _openHomework),
                                   ],
                                   const SizedBox(height: 8),
                                   if (boxes.isEmpty)

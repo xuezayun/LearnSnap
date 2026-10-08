@@ -19,6 +19,7 @@ import '../models/checkin_media.dart';
 import '../models/checkin_report.dart';
 import '../models/child_checkin_detail.dart';
 import '../models/client_version.dart';
+import '../features/homework/homework.dart';
 import '../models/home_snapshot.dart';
 import '../models/honor_badge.dart';
 import '../models/review_tools.dart';
@@ -458,6 +459,49 @@ class LearnSnapApi {
         .join('&');
     final path = '/children/$childId/wrong-items/print.pdf';
     return _client.getBytes(suffix.isEmpty ? path : '$path?$suffix');
+  }
+
+  Future<List<HomeworkSheet>> fetchHomework({
+    required int childId,
+    String? on,
+  }) async {
+    final path = on == null || on.isEmpty
+        ? '/children/$childId/homework'
+        : '/children/$childId/homework?on=$on';
+    final data = await _client.get(path);
+    final raw = data['sheets'];
+    if (raw is! List) return const [];
+    return [
+      for (final item in raw)
+        if (item is Map) HomeworkSheet.fromJson(Map<String, dynamic>.from(item)),
+    ];
+  }
+
+  Future<void> createPracticeSession({
+    required int childId,
+    required String kind,
+    required List<String> lines,
+    int? grade,
+  }) async {
+    await _client.post(
+      '/children/$childId/practice-sessions',
+      data: {
+        'kind': kind,
+        'lines': lines,
+        'grade': ?grade,
+      },
+    );
+  }
+
+  Future<void> setHomeworkDone({
+    required int childId,
+    required int itemId,
+    required bool done,
+  }) async {
+    await _client.post(
+      '/children/$childId/homework/items/$itemId/done',
+      data: {'done': done},
+    );
   }
 
   int _readInt(dynamic value) {

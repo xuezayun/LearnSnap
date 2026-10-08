@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../services/learn_snap_api.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_scaffold_bg.dart';
 import 'dictation_settings.dart';
@@ -37,6 +39,7 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
   var _repeat = 0;
   var _gapLeft = 0;
   var _token = 0;
+  var _saved = false;
   String? _error;
 
   @override
@@ -101,6 +104,7 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
     await _tts.stop();
     if (!mounted || token != _token) return;
     final start = index.clamp(0, widget.words.length - 1);
+    if (start == 0) _saved = false;
     setState(() {
       _playing = true;
       _index = start;
@@ -141,6 +145,25 @@ class _DictationPlayPageState extends State<DictationPlayPage> {
     }
     if (!mounted || token != _token) return;
     setState(() => _playing = false);
+    _rememberRound();
+  }
+
+  void _rememberRound() {
+    if (_saved || widget.words.isEmpty) return;
+    _saved = true;
+    final lines = List<String>.from(widget.words);
+    unawaited(() async {
+      try {
+        final api = LearnSnapApi();
+        final childId = await api.getChildId();
+        if (childId == null) return;
+        await api.createPracticeSession(
+          childId: childId,
+          kind: 'dictation',
+          lines: lines,
+        );
+      } catch (_) {}
+    }());
   }
 
   Future<void> _pause() async {
